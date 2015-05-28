@@ -11,16 +11,23 @@ classdef Test_NestedSamplingMain < matlab.unittest.TestCase
  	%  last modified $LastChangedDate$ 
  	%  and checked into repository $URL$,  
  	%  developed on Matlab 8.4.0.150421 (R2014b) 
- 	%  $Id$ 
- 	 
+ 	%  $Id$  	 
 
 	properties 
- 		 
+ 		testObj 
+ 	end 
+
+	methods (Test) 
+ 		function test_ctor(this) 
+            import mlnest.*;
+            this.testObj = NestedSamplingMain(Lighthouse);
+            this.assertTrue(isa(this.testObj.apply, 'mlnest.Lighthouse'));
+ 		end 
  	end 
 
 	methods 
   		function this = Test_NestedSamplingMain(varargin) 
- 			this = this@matlab.unittest.TestCase(varargin{:}); 
+ 			this = this@matlab.unittest.TestCase(varargin{:});
  		end 
  	end 
 
