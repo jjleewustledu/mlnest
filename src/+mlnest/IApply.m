@@ -11,8 +11,9 @@ classdef IApply
  	 
 
 	properties (Abstract)
-        n
+        map
         MAX
+        n
  	end 
 
 	methods (Abstract)
