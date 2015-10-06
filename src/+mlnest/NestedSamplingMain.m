@@ -42,6 +42,9 @@ classdef NestedSamplingMain < mlnest.AbstractApply
             %                                              ^ mlnest.IAppy
             %                ^ large, working space of data
 
+            %% control random number generation
+            rng(0, 'simdTwister');
+            
             this.apply = app;
             Obj        = cell(1, this.n);
             Samples    = cell(1, this.MAX);
@@ -51,47 +54,51 @@ classdef NestedSamplingMain < mlnest.AbstractApply
             H        = 0;
             logZ     = -realmax;
             logwidth = log(1 - exp(-1/this.n)); % outermost interval of prior mass
-            for nest = 1:this.MAX
-               
-                %% worst object in collection with weight = width * likelihood
-                worst = 1;
-                for i = 2:this.n
-                    if (Obj{i}.logL < Obj{worst}.logL)
-                        worst = i; end
-                end
-                Obj{worst}.logWt = logwidth + Obj{worst}.logL;
-                
-                %% update evidence Z and information H
-                logZnew = this.PLUS(logZ, Obj{worst}.logWt);
-                H = exp(Obj{worst}.logWt - logZnew) * Obj{worst}.logL + ...
-                         exp(logZ - logZnew) * (H + logZ) - ...
-                         logZnew;
-                logZ = logZnew;
-                
-                %% posterior samples
-                Samples{nest} = Obj{worst};                
-                this = this.printResults(Samples, nest, logZ, H, Samples{nest}.logL, Samples{nest}.logWt);
-                if (this.stopCondition(nest,H)); break; end
+            try
+                for nest = 1:this.MAX
 
-                %% kill worst object in favour of copy of different survivor
-                copy = mod(floor(this.n * this.UNIFORM), this.n) + 1;
-                while (copy == worst && this.n > 1)
-                    copy = mod(floor(this.n * this.UNIFORM), this.n) + 1; end
-                logLstar = Obj{worst}.logL;
-                Obj{worst} = Obj{copy};
-                
-                %% evolve copied object within constraints
-                Obj{worst} = this.Explore(Obj{worst}, logLstar);
-                
-                %% shrink interval                
-                logwidth = logwidth - 1/this.n;
+                    %% worst object in collection with weight = width * likelihood; evalulate logs
+                    worst = 1;
+                    for i = 2:this.n
+                        if (Obj{i}.logL < Obj{worst}.logL)
+                            worst = i; end
+                    end
+                    Obj{worst}.logWt = logwidth + Obj{worst}.logL;
+
+                    %% update evidence Z and information H
+                    logZnew = this.PLUS(logZ, Obj{worst}.logWt);
+                    H = exp(Obj{worst}.logWt - logZnew) * Obj{worst}.logL + ...
+                             exp(logZ - logZnew) * (H + logZ) - ...
+                             logZnew;
+                    logZ = logZnew;
+
+                    %% posterior samples
+                    Samples{nest} = Obj{worst};                
+                    this = this.printResults(Samples, nest, logZ, H);
+
+                    %% kill worst object in favour of copy of different survivor
+                    copy = mod(floor(this.n * this.UNIFORM), this.n) + 1;
+                    while (copy == worst && this.n > 1)
+                        copy = mod(floor(this.n * this.UNIFORM), this.n) + 1; end
+                    logLstar = Obj{worst}.logL;
+                    Obj{worst} = Obj{copy};
+
+                    %% evolve copied object within constraints
+                    [Obj{worst},acceptRejectRatio] = this.Explore(Obj{worst}, logLstar);
+                    this.printAcceptsRejects(nest, acceptRejectRatio);
+
+                    %% shrink interval                
+                    logwidth = logwidth - 1/this.n;
+                end
+            catch ME 
+                fprintf('NestedSamplingMain.ctor:\n%s\n%s.\n', ME.identifier, ME.message);
             end
         end 
         function obj = Prior(this)
             obj = this.apply.Prior;
         end
-        function obj = Explore(this, obj, logLstar)
-            obj = this.apply.Explore(obj, logLstar);
+        function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
+            [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
         end
         function dat = Results(this, smpls, nest, logZ)
             dat = this.apply.Results(smpls, nest, logZ);
@@ -101,32 +108,43 @@ classdef NestedSamplingMain < mlnest.AbstractApply
     %% PRIVATE
     
     methods (Access = 'private')        
-        function this = printResults(this, smpls, nest, logZ, H, logL, logWt)        
+        function this = printResults(this, smpls, nest, logZ, H)        
             if (1        == nest || ...
                 this.MAX == nest || ...    
                 0        == mod(nest, floor(this.MAX/this.nReports)))
                 fprintf('-----------------------------------------------------------\n');
                 fprintf('# iterates = %i\n', nest);
-                fprintf('Evidence: ln(Z) = %g +- %g\n', logZ, sqrt(H/this.n));
+                fprintf('Evidence:  ln(Z) = %g +- %g\n', logZ, sqrt(H/this.n));
                 fprintf('Information:  H = %g nats = %g bits\n', H, H/log(2));                
-                fprintf('Estimated parameter = mean +/- stddev:\n');
+                fprintf('Estimated parameters:\n');
                 
                 this.results = this.Results(smpls, nest, logZ);
                 
                 for f = 1:length(this.results.flds)
                     if (~strcmp('logL', this.results.flds{f}) && ~strcmp('logWt', this.results.flds{f}))
-                        fprintf('%s = %g +/- %g\n', ...
+                        fprintf('\t%s = %g +/- %g\n', ...
                             this.results.flds{f}, this.results.moment1(f), ...
                             sqrt(this.results.moment2(f) - this.results.moment1(f)^2));
                     end
                 end
-                fprintf('%s = %g\n', 'logL',  logL);
-                fprintf('%s = %g\n', 'logWt', logWt);
+                fprintf('%s(k = %i) = %g\n', 'logL',  nest, smpls{nest}.logL);
+                fprintf('%s(k = %i) = %g\n', 'logWt', nest, smpls{nest}.logWt);                
+                this.checkStoppingCondition(nest,H);
+            end
+        end 
+        function printAcceptsRejects(this, nest, ar)        
+            if (1        == nest || ...
+                this.MAX == nest || ...    
+                0        == mod(nest, floor(this.MAX/this.nReports^2)))
+                fprintf('# accepts/# rejects = %g\n', ar);
             end
         end
-        function tf = stopCondition(this, nest, H)
-            tf = nest/(H * this.n) > 10;
-            fprintf('NestedSamplingMain.stopCondition:  stopping at nest->%g, H->%g\n', nest, H);
+        function tf = checkStoppingCondition(this, nest, H)
+            tf = nest/(H * this.n) > 4;
+            if (tf)                
+                throw(MException('mlnest:stopCondition', ...
+                                 'NestedSamplingMain.checkStoppingCondition: stopping at nest->%g, H->%g\n', nest, H)); 
+            end
         end
     end
     

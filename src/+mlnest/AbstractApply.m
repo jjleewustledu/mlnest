@@ -11,7 +11,7 @@ classdef AbstractApply < mlnest.IApply
     
     properties (Constant)
         logSqrt2pi = 0.9189385332046727;
-        MCMC_Counter = 20;   % MCMC counter (pre-judged # steps)
+        MCMC_Counter = 20;  % MCMC counter (pre-judged # steps)
         STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
     
@@ -19,7 +19,7 @@ classdef AbstractApply < mlnest.IApply
         function u   = uniform2limits(~, u, lims)
             u = lims(2)*u + lims(1)*(1 - u);
         end        
-        function Obj = Explore(this, Obj, logLstar)
+        function [Obj,arRatio] = Explore(this, Obj, logLstar)
             %% EXPLORE evolves object within likelihood constraint
             %  Usage:  obj = this.Explore(Obj, log_likelihood_star)
             %                             ^ objects being evolved
@@ -41,8 +41,9 @@ classdef AbstractApply < mlnest.IApply
                 end
                 Try.logL = this.logLhood(Try); % trial likelihood value
                 
-                %% Accept if and only if within hard likelihood constraint
-                if (Try.logL > logLstar)
+                %% Accept if trial likelihood > previous likelihood * UNIFORM(0,1); evaluate logs.
+                %  Cf. Sivia sec. 9.4.4.
+                if (Try.logL > logLstar + log(this.UNIFORM))
                     Obj = Try;
                     accept = accept + 1;  
                 else
@@ -52,7 +53,8 @@ classdef AbstractApply < mlnest.IApply
                 %% Refine step-size to let acceptance ratio converge around 50%
                 if (accept > reject); step = step*exp(1/accept); end
                 if (accept < reject); step = step/exp(1/reject); end
-            end
+            end            
+            arRatio = accept/reject;
         end
         function r   = Results(this, Samples, nest, logZ)
             %% RESULTS prints the posterior properties; here mean and stddev of x, y

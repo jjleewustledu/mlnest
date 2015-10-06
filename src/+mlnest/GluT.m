@@ -11,7 +11,7 @@ classdef GluT < mlnest.AbstractApply
  	%  $Id$  	 
 
 	properties         
-        n   = 200
+        n   = 100
         MAX = 10000
          
         k12 = 0.00525
@@ -64,12 +64,13 @@ classdef GluT < mlnest.AbstractApply
         function m   = get.map(this)
             m = containers.Map;
             fL = 1; fH = 1;
+            meanMeas = mean(this.Measurements);
             m('k12') = struct('fixed', 0, 'min', 0.00192*fL, 'mean', this.k12, 'max', 0.0204*fH);  % Powers' monkey paper
             m('k21') = struct('fixed', 0, 'min', 0.0435*fL,  'mean', this.k21, 'max', 0.0942*fH);  % "
-            m('k32') = struct('fixed', 0, 'min', 0.0015*fL,  'mean', this.k32, 'max', 0.0413*fH);  % " excluding last 3 entries
+            m('k32') = struct('fixed', 0, 'min', 0.0015*fL,  'mean', this.k32, 'max', 0.5589*fH);  % " excluding last 2 entries
             m('k43') = struct('fixed', 0, 'min', 2.03e-5*fL, 'mean', this.k43, 'max', 3.85e-4*fH); % "
             m('t0' ) = struct('fixed', 0, 'min', 0*fL,       'mean', this.t0,  'max', 5e2*fH);   
-            m('sigma') = struct('fixed', 0, 'min', 0,     'mean', mean(this.Measurements), 'max', max(this.Measurements));  
+            m('sigma') = struct('fixed', 0, 'min', 0,        'mean', 0.5*meanMeas, 'max', meanMeas);  
         end
         function m   = get.mode(this)
             m = this.gluTxlsx_.mode;
@@ -125,7 +126,7 @@ classdef GluT < mlnest.AbstractApply
             this.Measurements = ip.Results.aTsc.becquerels;
             this.region       = ip.Results.region;
             this.times        = ip.Results.aTsc.times;            
-            this.gluTxlsx_    = mlarbelaez.GluTxlsx(this.region2mode(ip.Results.region));
+            this.gluTxlsx_    = mlarbelaez.GluTxlsx('Mode', this.region2mode(ip.Results.region));
             this.k04_         = this.FB / this.VB;
         end
         function Q    = itsConcentrationQ(this)
@@ -142,7 +143,7 @@ classdef GluT < mlnest.AbstractApply
             logL       = -len*(log(S) + this.logSqrt2pi) - (1/(2*S^2))*sum(DiffSquare);
         end
         function logL = logLhood_Cauchy(this, Obj)
-            logL   = sum(log((this.sigma/pi)./((this.Measurements - this.Estimation(Obj)).^2 + this.sigma^2)));
+            logL     = sum(log((this.sigma/pi)./((this.Measurements - this.Estimation(Obj)).^2 + this.sigma^2)));
         end
         function est  = Estimation(this, Obj)
             this.k12 = this.uniform2limits(Obj.k12, this.limits('k12'));
