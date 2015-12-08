@@ -1,5 +1,6 @@
 classdef AbstractApply < mlnest.IApply 
-	%% ABSTRACTAPPLY   
+	%% ABSTRACTAPPLY implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
+    %  by D.S. Sivia and J. Skilling, section 9.3.2  
 
 	%  $Revision$ 
  	%  was created $Date$ 
@@ -10,7 +11,7 @@ classdef AbstractApply < mlnest.IApply
  	%  $Id$     
     
     properties (Constant)
-        logSqrt2pi = 0.9189385332046727;
+        logSqrt2pi   = 0.9189385332046727;
         MCMC_Counter = 20;  % MCMC counter (pre-judged # steps)
         STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
@@ -103,8 +104,6 @@ classdef AbstractApply < mlnest.IApply
         end
     end 
     
-    %% PROTECTED
-    
     methods (Access = 'protected')        
         function vec  = limits(this, key)
             vec = [this.map(key).min this.map(key).max];
@@ -112,5 +111,6 @@ classdef AbstractApply < mlnest.IApply
     end
 
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy 
+    
 end
 
