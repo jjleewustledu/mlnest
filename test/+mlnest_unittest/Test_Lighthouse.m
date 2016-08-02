@@ -18,17 +18,14 @@ classdef Test_Lighthouse < matlab.unittest.TestCase
  	end 
 
 	methods (Test) 
- 		function test_afun(this) 
- 			import mlnest.*; 
- 			this.assumeEqual(1,1); 
- 			this.verifyEqual(1,1); 
- 			this.assertEqual(1,1); 
+ 		function test_run(this) 			
+            import mlnest.*;
+ 			this.testObj = Lighthouse.run;
  		end 
  	end 
 
  	methods (TestClassSetup) 
  		function setupLighthouse(this) 
- 			this.testObj = mlnest.Lighthouse; 
  		end 
  	end 
 

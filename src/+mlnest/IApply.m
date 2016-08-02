@@ -1,5 +1,5 @@
 classdef IApply  
-	%% IAPPLY implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
+	%% IAPPLY is an interface for application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2  
 
 	%  $Revision$ 
@@ -12,13 +12,13 @@ classdef IApply
  	 
 
 	properties (Abstract)
-        map
-        MAX
-        n
+        MAX    % int
+        Object % struct
+        n      % int
  	end 
 
 	methods (Abstract)
-        Prior(this, Obj)
+        Obj = Prior(this)
         Explore(this, Obj, logLstar)
         Results(this, Samples, nest, logZ)
  	end 

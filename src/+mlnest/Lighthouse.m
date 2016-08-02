@@ -34,11 +34,11 @@ classdef Lighthouse < mlnest.AbstractApply
     %  mean(y) = 0.990962, stddev(y) = 0.178608
     
     %  For D = D + 1:    
-    % # iterates = 1000
-    % Evidence: ln(Z) = -162.927 +- 0.195109
-    % Information:  H = 3.80677 nats = 5.492 bits
-    % mean(x) = 1.91361, stddev(x) = 0.0753362
-    % mean(y) = 1.09591, stddev(y) = 0.21325
+    %  # iterates = 1000
+    %  Evidence: ln(Z) = -162.927 +- 0.195109
+    %  Information:  H = 3.80677 nats = 5.492 bits
+    %  mean(x) = 1.91361, stddev(x) = 0.0753362
+    %  mean(y) = 1.09591, stddev(y) = 0.21325
 
 	%  $Revision$ 
  	%  was created $Date$ 
@@ -51,7 +51,14 @@ classdef Lighthouse < mlnest.AbstractApply
 	properties 
  		 n   = 100
          MAX = 1000
- 	end 
+    end 
+    
+    methods (Static)
+        function this = run
+            import mlnest.*;
+            this = NestedSamplingMain(Lighthouse);
+        end
+    end
 
 	methods 
         function logL = logLhood(~, x, y)

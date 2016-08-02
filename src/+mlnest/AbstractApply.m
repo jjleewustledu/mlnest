@@ -20,7 +20,7 @@ classdef AbstractApply < mlnest.IApply
         function u   = uniform2limits(~, u, lims)
             u = lims(2)*u + lims(1)*(1 - u);
         end        
-        function [Obj,arRatio] = Explore(this, Obj, logLstar)
+        function [Obj,acceptRejectRatio] = Explore(this, Obj, logLstar)
             %% EXPLORE evolves object within likelihood constraint
             %  Usage:  obj = this.Explore(Obj, log_likelihood_star)
             %                             ^ objects being evolved
@@ -55,7 +55,7 @@ classdef AbstractApply < mlnest.IApply
                 if (accept > reject); step = step*exp(1/accept); end
                 if (accept < reject); step = step/exp(1/reject); end
             end            
-            arRatio = accept/reject;
+            acceptRejectRatio = accept/reject;
         end
         function r   = Results(this, Samples, nest, logZ)
             %% RESULTS prints the posterior properties; here mean and stddev of x, y
