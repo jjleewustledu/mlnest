@@ -1,14 +1,15 @@
-classdef GluT < mlnest.AbstractApply
-	%% GLUT implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
+classdef C11Glucose < mlnest.AbstractApply
+	%% C11GLUCOSE implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2
 
-	%  $Revision$ 
- 	%  was created $Date$ 
- 	%  by $Author$,  
- 	%  last modified $LastChangedDate$ 
- 	%  and checked into repository $URL$,  
- 	%  developed on Matlab 8.4.0.150421 (R2014b) 
- 	%  $Id$  	 
+	%  $Revision$
+ 	%  was created 20-Oct-2016 21:18:43
+ 	%  by jjlee,
+ 	%  last modified $LastChangedDate$
+ 	%  and checked into repository /Users/jjlee/Local/src/mlcvl/mlnest/src/+mlnest.
+ 	%% It was developed on Matlab 9.0.0.341360 (R2016a) for MACI64.
+ 	
+	 
 
 	properties         
         n   = 100
@@ -52,15 +53,8 @@ classdef GluT < mlnest.AbstractApply
                          this.k21, this.k12, this.k32, this.k43, this.t0, this.VB, this.FB);
         end
         function inf = get.gluTxlsxInfo(this)
-            switch (this.mode)
-                case 'WholeBrain'
-                    inf = this.gluTxlsx_.pid_map(this.pnumber).(sprintf('scan%i', this.scanIndex));
-                case 'AlexsRois'
-                    inf = this.gluTxlsx_.rois_map(strtok(this.region, '_')).(sprintf('scan%i', this.scanIndex));                    
-                otherwise
-                    error('mlarbelaez:failedSwitch', 'Kinetics4McmcProblem.get.gluTxlsxInfo');
-            end
-        end        
+            inf = this.gluTxlsx_.pid_map(this.pnumber).(sprintf('scan%i', this.scanIndex));
+        end       
         function m   = get.map(this)
             m = containers.Map;
             fL = 1; fH = 1;
@@ -84,12 +78,47 @@ classdef GluT < mlnest.AbstractApply
         function f   = get.FB(this)
             % fraction/s
             f = this.gluTxlsxInfo.cbf;
-            assert(~isnumeric(f) || ~isnan(f), 'mlarbelaez:nan', 'Kinetics4McmcProblem.get.FB');
+            assert(~isnumeric(f) || ~isnan(f), 'mlnext:nan', 'C11Glucose.get.FB');
             f = 1.05 * f / 6000; % mL/min/100g to 1/s
         end
     end
 
-    methods (Static)        
+    methods (Static)
+        function [these,dt] = parRun
+
+            t0 = tic %#ok<*NOPRT>
+            subjectsPth = fullfile('/scratch/jjlee/powers', 'pet6_c11monkey', '');
+            cd(subjectsPth);
+            runLabel = fullfile(subjectsPth, sprintf('parRun_C11Glucose_%s', datestr(now, 30)));
+            %diary([runLabel '.log']);
+
+            import mlnext.* mlsystem.*;   
+
+            dt    = DirTool('M*'); dns = dt.dns;
+            assert(~isempty(dt.dns));
+            these = cell(length(dt.dns));
+            
+            parfor d = 1:length(dns)
+                try
+                    pth = fullfile(subjectsPth, dns{d}, '');
+                    cd(pth);
+                    fprintf('-------------------------------------------------------------------------------------------------------------------------------\n');
+                    fprintf('parRun:  working in %s\n', pth);
+                    these{d} = C11Glucose.run;
+                catch ME
+                    handwarning(ME)
+                end
+            end
+
+            cd(subjectsPth);
+            save([runLabel '.mat']);            
+            tf = toc(t0) %#ok<NASGU>
+            %diary off
+        end
+        function this = run
+            import mlnest.*;
+            this = NestedSamplingMain(C11Glucose);
+        end
         function Q_sampl = concentrationQ(k04, k12, k21, k32, k43, t0, dta, VB, t_sampl)
             t                    = dta.timeInterpolants; % use interpolants internally            
             t0_idx               = floor(t0/dta.dt) + 1;
@@ -112,12 +141,11 @@ classdef GluT < mlnest.AbstractApply
     end
     
 	methods
-        function this = GluT(aTsc, aDta, varargin)
+        function this = C11Glucose(aTsc, aDta, varargin)
             
             ip = inputParser;
             addRequired(ip, 'aTsc', @(x) isa(x, 'mlpet.TSC'));
             addRequired(ip, 'aDta', @(x) isa(x, 'mlpet.DTA'));
-            addOptional(ip, 'region', '', @ischar);
             parse(ip, aTsc, aDta, varargin{:});
             
             this.pnumber      = ip.Results.aTsc.pnumber;
@@ -126,7 +154,7 @@ classdef GluT < mlnest.AbstractApply
             this.Measurements = ip.Results.aTsc.becquerels;
             this.region       = ip.Results.region;
             this.times        = ip.Results.aTsc.times;            
-            this.gluTxlsx_    = mlarbelaez.GluTxlsx('Mode', this.region2mode(ip.Results.region));
+            this.gluTxlsx_    = mlpowers.GluTxlsx('Mode', 'WholeBrain');
             this.k04_         = this.FB / this.VB;
         end
         function Q    = itsConcentrationQ(this)
@@ -174,16 +202,6 @@ classdef GluT < mlnest.AbstractApply
         k04_
     end
     
-    methods (Access = 'private')        
-        function m = region2mode(~, r)            
-            if (isempty(r))
-                m = 'WholeBrain';
-            else
-                m = 'AlexsRois';
-            end
-        end  
-    end
-    
-	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy 
-end
+	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy
+ end
 
