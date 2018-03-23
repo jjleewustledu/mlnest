@@ -151,7 +151,7 @@ classdef C11Glucose < mlnest.AbstractApply
             this.pnumber      = ip.Results.aTsc.pnumber;
             this.scanIndex    = ip.Results.aDta.scanIndex;
             this.dta          = ip.Results.aDta;
-            this.Measurements = ip.Results.aTsc.becquerels;
+            this.Measurements = ip.Results.aTsc.activity;
             this.region       = ip.Results.region;
             this.times        = ip.Results.aTsc.times;            
             this.gluTxlsx_    = mlpowers.GluTxlsx('Mode', 'WholeBrain');

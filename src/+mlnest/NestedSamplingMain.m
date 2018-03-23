@@ -38,7 +38,7 @@ classdef NestedSamplingMain < mlnest.AbstractApply
 	methods 
   		function this = NestedSamplingMain(app) 
  			%% NESTEDSAMPLINGMAIN 
-            %  @params app is an application object implementing mlnest.IApply
+            %  @param app is an application object implementing mlnest.IApply
             %  @return this
  			%  Usage:  this = NestedSamplingMain(mlnest.IApply object)
             %  Internally:
