@@ -89,7 +89,7 @@ classdef C11Glucose < mlnest.AbstractApply
             t0 = tic %#ok<*NOPRT>
             subjectsPth = fullfile('/scratch/jjlee/powers', 'pet6_c11monkey', '');
             cd(subjectsPth);
-            runLabel = fullfile(subjectsPth, sprintf('parRun_C11Glucose_%s', datestr(now, 30)));
+            runLabel = fullfile(subjectsPth, sprintf('parRun_C11Glucose_%s', mydatetimestr(now)));
             %diary([runLabel '.log']);
 
             import mlnext.* mlsystem.*;   
