@@ -20,6 +20,7 @@ classdef NestedSamplingMain < mlnest.AbstractApply
     properties (Dependent)
         map
         MAX
+        Measurement
         n
     end
     
@@ -30,12 +31,52 @@ classdef NestedSamplingMain < mlnest.AbstractApply
         function m = get.MAX(this)
             m = this.apply.MAX;
         end
+        function m = get.Measurement(this)
+            m = this.apply.Measurement;
+        end
         function m = get.n(this)
             m = this.apply.n;
         end
     end
 
 	methods 
+        function est  = Estimation(this, varargin)
+            est = this.apply.Estimation(varargin{:});
+        end
+        function est  = EstimationResults(this)
+            if isempty(this.results)
+                est = [];
+                return
+            end
+            for f = this.results.flds'
+                if (~strcmp('logL', f{1}) && ~strcmp('logWt', f{1}))
+                    [~,idx] = max(cell2mat(cellfun(@(x) strcmp(x, f{1}), this.results.flds, 'UniformOutput', false)));
+                    obj.(f{1}) = this.limits2uniform(this.results.moment1(idx), this.limits(f{1}));
+                end
+            end
+            est = this.Estimation(obj);            
+        end  
+        function logL = logLhood(this, varargin)
+            logL = this.apply.logLhood(varargin{:});
+        end
+        function Obj  = Prior(this)
+            Obj = this.apply.Prior;
+        end
+        function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
+            [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
+        end        
+        function plotResults(this)
+            figure;
+            est = this.EstimationResults();
+            plot(1:length(this.Measurement), this.Measurement, 'o', ...
+                 1:length(est), est, '-+')
+            title([class(this) '.plotResults()'])
+            legend('measurement', 'estimation')
+        end
+        function dat = Results(this, smpls, nest, logZ)
+            dat = this.apply.Results(smpls, nest, logZ);
+        end
+        
   		function this = NestedSamplingMain(app) 
  			%% NESTEDSAMPLINGMAIN 
             %  @param app is an application object implementing mlnest.IApply
@@ -62,7 +103,8 @@ classdef NestedSamplingMain < mlnest.AbstractApply
             
             %% set prior objects
             for i = 1:this.n
-                Obj{i} = this.Prior; end
+                Obj{i} = this.Prior; 
+            end
             
             %% outermost interval of prior mass
             logwidth = log(1 - exp(-1/this.n)); 
@@ -74,7 +116,8 @@ classdef NestedSamplingMain < mlnest.AbstractApply
                     %% worst object in collection with weight = width * likelihood
                     worst = 1;
                     for i = 2:this.n
-                        if (Obj{i}.logL < Obj{worst}.logL); worst = i; end; end
+                        if (Obj{i}.logL < Obj{worst}.logL); worst = i; end
+                    end
                     Obj{worst}.logWt = logwidth + Obj{worst}.logL;
 
                     %% update evidence Z and information H
@@ -86,18 +129,19 @@ classdef NestedSamplingMain < mlnest.AbstractApply
 
                     %% posterior samples (optional)
                     Samples{nest} = Obj{worst};
-                    this = this.printResults(nest, logZ, H, Samples);
+%                    this = this.printResults(nest, logZ, H, Samples);
 
                     %% kill worst object in favour of copy of different survivor
                     copy = mod(floor(this.n * this.UNIFORM), this.n) + 1;
                     while (copy == worst && this.n > 1)
-                        copy = mod(floor(this.n * this.UNIFORM), this.n) + 1; end
+                        copy = mod(floor(this.n * this.UNIFORM), this.n) + 1; 
+                    end
                     logLstar = Obj{worst}.logL;
                     Obj{worst} = Obj{copy};
 
                     %% evolve copied object within constraints
-                    [Obj{worst},acceptRejectRatio] = this.Explore(Obj{worst}, logLstar);
-                    this.printAcceptsRejects(nest, acceptRejectRatio);
+                    [Obj{worst},acceptRejectRatio] = this.Explore(Obj{worst}, logLstar); %#ok<ASGLU>
+%                    this.printAcceptsRejects(nest, acceptRejectRatio);
 
                     %% shrink interval                
                     logwidth = logwidth - 1/this.n;
@@ -109,62 +153,53 @@ classdef NestedSamplingMain < mlnest.AbstractApply
             %% exit with evidence Z, information H, and optional posterior Samples
             this = this.exit(nest, logZ, H, Samples);            
         end 
-        function Obj = Prior(this)
-            Obj = this.apply.Prior;
-        end
-        function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
-            [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
-        end
-        function dat = Results(this, smpls, nest, logZ)
-            dat = this.apply.Results(smpls, nest, logZ);
-        end
     end 
     
     %% PRIVATE
     
-    methods (Access = 'private')        
-        function this = printResults(this, nest, logZ, H, Samples)
-            if (1        == nest || ...
-                this.MAX == nest || ...    
-                0        == mod(nest, floor(this.MAX/this.nReports)))
-                fprintf('-----------------------------------------------------------\n');
-                fprintf('# iterates = %i\n', nest);
-                fprintf('Evidence:  ln(Z) = %g +- %g\n', logZ, sqrt(H/this.n));
-                fprintf('Information:  H = %g nats = %g bits\n', H, H/log(2));
-                this.results = this.Results(Samples, nest, logZ);
-                
-                for f = 1:length(this.results.flds)
-                    if (~strcmp('logL', this.results.flds{f}) && ~strcmp('logWt', this.results.flds{f}))
-                        fprintf('\t%s = %g +/- %g\n', ...
-                            this.results.flds{f}, this.results.moment1(f), ...
-                            sqrt(this.results.moment2(f) - this.results.moment1(f)^2));
-                    end
-                end
-                fprintf('%s(k = %i) = %g\n', 'logL',  nest, Samples{nest}.logL);
-                fprintf('%s(k = %i) = %g\n', 'logWt', nest, Samples{nest}.logWt);                
-                this.checkStoppingCondition(nest,H);
-            end
-        end 
-        function printAcceptsRejects(this, nest, acceptRejectRatio)        
+    methods (Access = 'private')    
+        function tf = checkStoppingCondition(this, nest, H)
+            tf = nest/(H * this.n) > 4;
+        end
+        function this = exit(this, nest, logZ, H, Samples)
+            this.results = this.Results(Samples, nest, logZ);
+            this.printResults(nest, logZ, H, Samples);
+            figure
+            plotmatrix(this.results.chains);
+            title([class(this.apply) '.results.chains'])
+            this.plotResults()
+        end
+        function printAcceptsRejects(this, nest, acceptRejectRatio)
             if (1        == nest || ...
                 this.MAX == nest || ...    
                 0        == mod(nest, floor(this.MAX/this.nReports^2)))
                 fprintf('# accepts/# rejects = %g\n', acceptRejectRatio);
             end
         end
-        function tf = checkStoppingCondition(this, nest, H)
-            tf = nest/(H * this.n) > 4;
-            if (tf)                
-                error('mlnest:stoppingCondition', ...
-                      'NestedSamplingMain.checkStoppingCondition: stopping at nest->%g, H->%g\n', nest, H);
+        function this = printResults(this, nest, logZ, H, Samples)
+            if (1        == nest || ...
+                this.MAX == nest || ...    
+                0        == mod(nest, floor(this.MAX/this.nReports)))
+                fprintf('-----------------------------------------------------------\n');
+                fprintf('# iterates = %i\n', nest);
+                fprintf('Evidence:  ln(Z) = %g +/- %g\n', logZ, sqrt(H/this.n));
+                fprintf('Information:  H = %g nats = %g bits\n', H, H/log(2));
+                this.results = this.Results(Samples, nest, logZ);
+                if isempty(this.results)
+                    return
+                end
+                
+                for f = 1:length(this.results.flds)
+                    if (~strcmp('logL', this.results.flds{f}) && ~strcmp('logWt', this.results.flds{f}))
+                        fprintf('\t%s = %g +/- %g\n', ...
+                            this.results.flds{f}, ...
+                            this.results.moment1(f), ...
+                            sqrt(this.results.moment2(f) - this.results.moment1(f)^2));
+                    end
+                end
+                fprintf('%s(k = %i) = %g\n', 'logL',  nest, Samples{nest}.logL);
+                fprintf('%s(k = %i) = %g\n', 'logWt', nest, Samples{nest}.logWt);
             end
-        end
-        function this = exit(this, nest, logZ, H, Samples)
-            fprintf('-----------------------------------------------------------\n');
-            fprintf('# iterates = %i\n', nest);
-            fprintf('Evidence:  ln(Z) = %g +- %g\n', logZ, sqrt(H/this.n));
-            fprintf('Information:  H = %g nats = %g bits\n', H, H/log(2));
-            this.results = this.Results(Samples, nest, logZ);
         end
     end
     

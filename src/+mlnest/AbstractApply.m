@@ -16,10 +16,21 @@ classdef AbstractApply < mlnest.IApply
         STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
     
-    methods        
-        function u   = uniform2limits(~, u, lims)
-            u = lims(2)*u + lims(1)*(1 - u);
-        end        
+    properties
+        Object
+        sigma0
+    end
+    
+    methods (Static)
+        function main = run(application)
+            assert(isa(application, 'mlnest.IApply'))
+            main = mlnest.NestedSamplingMain(application);
+            save(sprintf('%s_run_%s.mat', ...
+                strrep(class(application), '.', '_'), datestr(now, 'yyyymmddHHMMSS')));
+        end
+    end
+    
+    methods     
         function [Obj,acceptRejectRatio] = Explore(this, Obj, logLstar)
             %% EXPLORE evolves object within likelihood constraint
             %  Usage:  obj = this.Explore(Obj, log_likelihood_star)
@@ -36,7 +47,7 @@ classdef AbstractApply < mlnest.IApply
                 flds = fields(Try);
                 for f = 1:length(flds)                    
                     if (~strcmp('logL', flds{f}) && ~strcmp('logWt', flds{f}))
-                        Try.(flds{f}) = Obj.(flds{f}) + step*(2*this.UNIFORM - 1.);  % |move| < step
+                        Try.(flds{f}) = Obj.(flds{f}) + step*(2*rand() - 1.);  % |move| < step
                         Try.(flds{f}) = Try.(flds{f}) - floor(Try.(flds{f}));        % wraparound to stay within (0,1)
                     end
                 end
@@ -44,7 +55,7 @@ classdef AbstractApply < mlnest.IApply
                 
                 %% Accept if trial likelihood > previous likelihood * UNIFORM(0,1); evaluate logs.
                 %  Cf. Sivia sec. 9.4.4.
-                if (Try.logL > logLstar + log(this.UNIFORM))
+                if (Try.logL > logLstar + log(rand()))
                     Obj = Try;
                     accept = accept + 1;  
                 else
@@ -57,6 +68,21 @@ classdef AbstractApply < mlnest.IApply
             end            
             acceptRejectRatio = accept/reject;
         end
+        function logL = logLhood(this, Obj)
+            Estimation = this.Estimation(Obj);
+            positive   = this.Measurement > 0;
+            EoverM     = Estimation(positive)./this.Measurement(positive);
+            Q          = sum((1 - EoverM).^2);
+            logL       = -0.5 * Q/this.sigma0^2;
+        end
+        function Obj  = Prior(this, ~)
+            Obj = struct('logL',  [], 'logWt', []);
+            keys = this.map.keys;
+            for k = 1:length(keys)
+                Obj.(keys{k}) = rand();
+            end
+            Obj.logL = this.logLhood(Obj);
+        end
         function r   = Results(this, Samples, nest, logZ)
             %% RESULTS prints the posterior properties; here mean and stddev of x, y
             %  Usage:  this.Results(Samples, nest, logZ)
@@ -67,30 +93,40 @@ classdef AbstractApply < mlnest.IApply
             flds    = fields(Samples{1});
             moment1 = zeros(1, length(flds));
             moment2 = zeros(1, length(flds));
+            chains  = zeros(nest, length(flds));
             for i = 1:nest
                 w  = exp(Samples{i}.logWt - logZ); % proportional weight
                 for f = 1:length(flds)
                     if (~strcmp('logL', flds{f}) && ~strcmp('logWt', flds{f}))
-                        fvalue     = this.uniform2limits(Samples{i}.(flds{f}), this.limits(flds{f}));
+                        fvalue = this.uniform2limits(Samples{i}.(flds{f}), this.limits(flds{f}));
+                        chains(i, f) = fvalue;
                         moment1(f) = moment1(f) + w*fvalue;
                         moment2(f) = moment2(f) + w*fvalue^2;
+                    end
+                    if strcmp('logL', flds{f})
+                        chains(i, f) = Samples{i}.logL;
+                    end
+                    if strcmp('logWt', flds{f})
+                        chains(i, f) = Samples{i}.logWt;
                     end
                 end
             end
             r.flds    = flds;
             r.moment1 = moment1;
             r.moment2 = moment2;
+            r.chains  = chains(:, ~strcmp(flds, 'logWt'));
         end
+        function u   = limits2uniform(~, y, lims)
+            u = (y - lims(1))/(lims(2) - lims(1));
+        end
+        function y   = uniform2limits(~, u, lims)
+            y = lims(2)*u + lims(1)*(1 - u);
+        end 
     end
     
     %% PROTECTED
     
     methods (Static, Access = 'protected')
-        function u = UNIFORM
-            %% uniform inside (0,1)
-           
-            u = rand;
-        end
         function z = PLUS(x, y)
             %% logarithmic addition log(exp(x) + exp(y))
             %  protects against over/underflow of exponential quantities such as likelihood \mathcal{L}^*
@@ -101,6 +137,11 @@ classdef AbstractApply < mlnest.IApply
             else
                 z = y + log(1 + exp(x - y));
             end
+        end
+        function u = UNIFORM
+            %% uniform inside (0,1)
+           
+            u = rand;
         end
     end 
     

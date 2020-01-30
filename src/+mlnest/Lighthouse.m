@@ -46,11 +46,16 @@ classdef Lighthouse < mlnest.AbstractApply
  	%  last modified $LastChangedDate$ 
  	%  and checked into repository $URL$,  
  	%  developed on Matlab 8.4.0.150421 (R2014b) 
- 	%  $Id$  	 
+ 	%  $Id$  
+    
+    properties (Dependent)
+        map
+    end
 
 	properties 
  		 n   = 100
          MAX = 1000
+         Measurement
     end 
     
     methods (Static)
@@ -61,29 +66,36 @@ classdef Lighthouse < mlnest.AbstractApply
     end
 
 	methods 
-        function logL = logLhood(~, x, y)
+        
+        %% GET
+        
+        function m   = get.map(~)
+            m = containers.Map;
+            m('u') = struct('fixed', 0, 'min', 0, 'mean', 0.5, 'max', 1);
+            m('v') = struct('fixed', 0, 'min', 0, 'mean', 0.5, 'max', 1);
+            m('x') = struct('fixed', 0, 'min',-2, 'mean', 0,   'max', 2);
+            m('y') = struct('fixed', 0, 'min', 0, 'mean', 1,   'max', 2);
+        end
+        
+        %%
+        
+        function obj  = Estimation(~, obj)
+        end
+        function logL = logLhood(this, x, y)
             %% LOGLHOOD
             %  Usage:  log_likelihood = this.logLhood(x, y)
             %                                         ^ easterly position
             %                                            ^ northerly position
             
-            N = 64; % # arrival positions
-            D =                      [ 4.73,  0.45, -1.73,  1.09,  2.19,  0.12, ...
-                  1.31,  1.00,  1.32,  1.07,  0.86, -0.49, -2.59,  1.73,  2.11, ...
-                  1.61,  4.98,  1.71,  2.23,-57.20,  0.96,  1.25, -1.56,  2.45, ...
-                  1.19,  2.17,-10.66,  1.91, -4.16,  1.92,  0.10,  1.98, -2.51, ...
-                  5.55, -0.47,  1.91,  0.95, -0.78, -0.84,  1.72, -0.01,  1.48, ...
-                  2.70,  1.21,  4.41, -4.79,  1.33,  0.81,  0.20,  1.58,  1.29, ...
-                 16.19,  2.75, -2.38, -1.79,  6.50,-18.53,  0.72,  0.94,  3.64, ...
-                  1.94, -0.11,  1.57,  0.57]; % up to N=64 data
+            D = this.Measurement;
             logL = 0; % logLikelihood accumulator
-            for k = 1:N
+            for k = 1:length(D)
                 logL = logL + log((y/3.1416) / ((D(k)-x)*(D(k)-x) + y*y)); end
         end
         function Obj  = Prior(this, ~)
             Obj = struct( ...
-                'u', this.UNIFORM, ...
-                'v', this.UNIFORM, ...
+                'u', rand(), ...
+                'v', rand(), ...
                 'x', [], ...
                 'y', [], ...
                 'logL', [], ...
@@ -92,7 +104,7 @@ classdef Lighthouse < mlnest.AbstractApply
             Obj.y    = 2*Obj.v;
             Obj.logL = this.logLhood(Obj.x, Obj.y);
         end
-        function Obj  = Explore(this, Obj, logLstar)
+        function [Obj,acceptRejectRatio] = Explore(this, Obj, logLstar)
             %% EXPLORE evolves object within likelihood constraint
             %  Usage:  obj = this.Explore(obj, log_likelihood_star)
             
@@ -105,8 +117,8 @@ classdef Lighthouse < mlnest.AbstractApply
                 m = m - 1;
 
                 %% Trial object
-                Try.u = Obj.u + step * (2*this.UNIFORM - 1.);  % |move| < step
-                Try.v = Obj.v + step * (2*this.UNIFORM - 1.);  % |move| < step
+                Try.u = Obj.u + step * (2*rand() - 1.);  % |move| < step
+                Try.v = Obj.v + step * (2*rand() - 1.);  % |move| < step
                 Try.u = Try.u - floor(Try.u);      % wraparound to stay within (0,1)
                 Try.v = Try.v - floor(Try.v);      % wraparound to stay within (0,1)
                 Try.x = 4.0 * Try.u - 2.0;         % map to x
@@ -124,9 +136,11 @@ classdef Lighthouse < mlnest.AbstractApply
                 %% Refine step-size to let acceptance ratio converge around 50%
                 if ( accept > reject ); step = step * exp(1.0 / accept); end
                 if ( accept < reject ); step = step / exp(1.0 / reject); end
+                
+                acceptRejectRatio = accept/reject;
             end
         end
-        function        Results(~, Samples, nest, logZ)
+        function r    = Results(~, Samples, nest, logZ)
             %% RESULTS prints the posterior properties; here mean and stddev of x, y
             %  Usage:  this.Results(Samples, nest, logZ)
             %                       ^ objects defining posterior
@@ -143,7 +157,22 @@ classdef Lighthouse < mlnest.AbstractApply
                 yy = yy + w * Samples{i}.y * Samples{i}.y;
             end
             fprintf('mean(x) = %g, stddev(x) = %g\n', x, sqrt(xx-x*x));
-            fprintf('mean(y) = %g, stddev(y) = %g\n', y, sqrt(yy-y*y));            
+            fprintf('mean(y) = %g, stddev(y) = %g\n', y, sqrt(yy-y*y));
+            
+            r = {};
+        end
+        function u   = uniform2limits(~, u, varargin)            
+        end 
+        
+        function this = Lighthouse(varargin)            
+            this.Measurement =       [ 4.73,  0.45, -1.73,  1.09,  2.19,  0.12, ...
+                  1.31,  1.00,  1.32,  1.07,  0.86, -0.49, -2.59,  1.73,  2.11, ...
+                  1.61,  4.98,  1.71,  2.23,-57.20,  0.96,  1.25, -1.56,  2.45, ...
+                  1.19,  2.17,-10.66,  1.91, -4.16,  1.92,  0.10,  1.98, -2.51, ...
+                  5.55, -0.47,  1.91,  0.95, -0.78, -0.84,  1.72, -0.01,  1.48, ...
+                  2.70,  1.21,  4.41, -4.79,  1.33,  0.81,  0.20,  1.58,  1.29, ...
+                 16.19,  2.75, -2.38, -1.79,  6.50,-18.53,  0.72,  0.94,  3.64, ...
+                  1.94, -0.11,  1.57,  0.57]; % arrival positions
         end
  	end 
 

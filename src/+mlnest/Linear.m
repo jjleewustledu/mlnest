@@ -18,13 +18,18 @@ classdef Linear < mlnest.AbstractApply
          timeFinal
          dt
          timeInterpolants
-         timeLength
-         k = 1
-         
-         limits
+         timeLength         
+         map
  	end 
 
 	methods
+        function est  = Estimation(this, Obj)
+            slope     = this.uniform2limits(Obj.slope,     this.limits('slope'));
+            intercept = this.uniform2limits(Obj.intercept, this.limits('intercept'));
+            
+            est = slope*this.timeInterpolants + intercept;
+        end
+        
         function this = Linear
             this.Measurement = 0:119;
             this.timeFinal = 119;
@@ -33,34 +38,11 @@ classdef Linear < mlnest.AbstractApply
             this.timeInterpolants = linspace(0, this.timeFinal, length(this.Measurement));
             this.timeLength = length(this.Measurement);
             
-            this.limits.slope     = [0.1     10];
-            this.limits.intercept = [-1      1];
-        end
-        function est  = Estimation(this, Obj)
-            slope     = this.uniform2limits(Obj.slope,     this.limits.slope);
-            intercept = this.uniform2limits(Obj.intercept, this.limits.intercept);
+            this.map = containers.Map;
+            this.map('slope') = struct('min', 0.1, 'max', 10);
+            this.map('intercept') = struct('min', -1, 'max', 1);
             
-            est = slope*this.timeInterpolants + intercept;
-        end
-        function logL = logLhood(this, Obj)
-            Estimation = this.Estimation(Obj);       
-            DiffSquare = (this.Measurement - Estimation).^2;
-            S          = sqrt(sum(DiffSquare)/this.timeLength);
-            logL       = -this.timeLength*(log(S) + this.logSqrt2pi) - ...
-                          (1/(2*S^2))*sum(DiffSquare);
-        end
-        function logL = logLhood_Cauchy(this, Obj)
-            Y0         = this.timeFinal/2;
-            Estimation = this.Estimation(Obj);
-            logL       = sum(log((Y0/pi)./((this.Measurement - Estimation).^2 + Y0^2)));
-        end
-        function Obj  = Prior(this, ~)
-            Obj = struct( ...
-                'slope',     this.UNIFORM, ...
-                'intercept', this.UNIFORM, ...
-                'logL',  [], ...
-                'logWt', []);
-            Obj.logL = this.logLhood(Obj);
+            this.sigma0 = 0.01;
         end
  	end 
 

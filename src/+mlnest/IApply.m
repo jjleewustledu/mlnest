@@ -13,11 +13,15 @@ classdef IApply
 
 	properties (Abstract)
         MAX    % int
+        Measurement
         Object % struct
         n      % int
+        sigma0
  	end 
 
 	methods (Abstract)
+        e = Estimation(this)
+        logL = logLhood(this)
         Obj = Prior(this)
         Explore(this, Obj, logLstar)
         Results(this, Samples, nest, logZ)

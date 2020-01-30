@@ -18,17 +18,14 @@ classdef Test_Linear < matlab.unittest.TestCase
  	end 
 
 	methods (Test) 
- 		function test_afun(this) 
- 			import mlnest.*; 
- 			this.assumeEqual(1,1); 
- 			this.verifyEqual(1,1); 
- 			this.assertEqual(1,1); 
+ 		function test_run(this) 
+ 			mlnest.Linear.run(mlnest.Linear)
  		end 
  	end 
 
  	methods (TestClassSetup) 
  		function setupLinear(this) 
- 			this.testObj = mlnest.Linear; 
+ 			%this.testObj = mlnest.Linear; 
  		end 
  	end 
 
