@@ -132,9 +132,9 @@ classdef NestedSamplingMain < mlnest.AbstractApply
 %                    this = this.printResults(nest, logZ, H, Samples);
 
                     %% kill worst object in favour of copy of different survivor
-                    copy = mod(floor(this.n * this.UNIFORM), this.n) + 1;
+                    copy = mod(floor(this.n * rand()), this.n) + 1;
                     while (copy == worst && this.n > 1)
-                        copy = mod(floor(this.n * this.UNIFORM), this.n) + 1; 
+                        copy = mod(floor(this.n * rand()), this.n) + 1; 
                     end
                     logLstar = Obj{worst}.logL;
                     Obj{worst} = Obj{copy};
@@ -164,6 +164,10 @@ classdef NestedSamplingMain < mlnest.AbstractApply
         function this = exit(this, nest, logZ, H, Samples)
             this.results = this.Results(Samples, nest, logZ);
             this.printResults(nest, logZ, H, Samples);
+            if isempty(this.results)
+                return
+            end
+                
             figure
             plotmatrix(this.results.chains);
             title([class(this.apply) '.results.chains'])

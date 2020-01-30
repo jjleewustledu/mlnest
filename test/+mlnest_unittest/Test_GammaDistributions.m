@@ -59,6 +59,7 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
 		function setupGammaDistributionsTest(this)
  			this.testObj = this.testObj_;
  			this.addTeardown(@this.cleanTestMethod);
+            rng('default')
  		end
 	end
 

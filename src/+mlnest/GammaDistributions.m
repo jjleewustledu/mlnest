@@ -8,7 +8,7 @@ classdef GammaDistributions < mlnest.AbstractApply
  	
 	properties
  		 n   = 100
-         MAX = 1000
+         MAX = 2000
          
          map
          Measurement % tracer concentration of single voxel over time, using dimensionless, scaled parameters
@@ -38,7 +38,10 @@ classdef GammaDistributions < mlnest.AbstractApply
         end
         function k = estimatorGammaP(this, Obj)
             k = this.estimatorGamma(Obj) .* (1 + Obj.w*this.timeInterpolants);
-            k = k/sum(k);
+            sumk = sum(k);
+            if sumk > eps
+                k = k/sumk;
+            end
         end
         function k = estimatorGenGamma(this, Obj)
             a = Obj.a;
@@ -58,8 +61,11 @@ classdef GammaDistributions < mlnest.AbstractApply
             k = abs(k*p*b^(a+1)/gamma((a+1)/p));
         end
         function k = estimatorGenGammaP(this, Obj)
-            k = this.estimatorGenGamma(Obj) .* (1 + Obj.w*this.timeInterpolants);
-            k = k/sum(k);
+            k = this.estimatorGenGamma(Obj) .* (1 + Obj.w*this.timeInterpolants);            
+            sumk = sum(k);
+            if sumk > eps
+                k = k/sumk;
+            end
         end
 		  
  		function this = GammaDistributions(varargin)
