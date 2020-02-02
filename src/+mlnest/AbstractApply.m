@@ -102,8 +102,8 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             max_  = this.vec2uniform(mapStruct.max, this.limits(key));
             std_  = 0.25*abs(max_ - min_);
             val   = init_ + randn()*std_;
-            while val < mapStruct.min || mapStruct.max < val
-                val = mapStruct.init + std_*randn();
+            while val < min_ || max_ < val
+                val = init_ + randn()*std_;
             end
             
             % surprisingly inferior:
