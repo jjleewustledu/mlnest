@@ -11,15 +11,18 @@ classdef Linear < mlnest.AbstractApply
  	%  $Id$  	 
     
 	properties 
- 		 n   = 100
-         MAX = 3000
-         
-         Measurement % tracer concentration of single voxel over time, using dimensionless, scaled parameters
-         timeFinal
-         dt
-         timeInterpolants
-         timeLength         
-         map
+        ignoredObjFields = {'logL' 'logWt'}
+        MAX = 500          % # of nested sampling loops, similar to temperature for s.a.
+        MCMC_Counter = 50  % MCMC counter (pre-judged # steps)
+        n = 25             % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
+        STEP_Initial = 0.2 % Initial guess suitable step-size in (0,1)
+        
+        dt
+        Measurement % tracer concentration of single voxel over time, using dimensionless, scaled parameters
+        timeFinal
+        timeInterpolants
+        timeLength
+        map
  	end 
 
 	methods

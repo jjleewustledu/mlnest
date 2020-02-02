@@ -12,12 +12,15 @@ classdef IApply < handle
  	 
 
 	properties (Abstract)
-        MAX    % int
-        Measurement
-        Object % struct
-        n      % int
+        ignoredObjFields
+        MAX          % # of nested sampling loops, similar to temperature for s.a.
+        MCMC_Counter % counter for explorting single particle (pre-judged # steps); improves precision
+        Measurement  % external data
+        Object       % struct for sampling particles
+        n            % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
         results
-        sigma0
+        sigma0       % of model estimation
+        STEP_Initial % Initial guess suitable step-size in (0,1); 0.01*MCMC_Counter^{-1} < STEP < 10*MCMC_Counter^{-1} improve precision
  	end 
 
 	methods (Abstract)

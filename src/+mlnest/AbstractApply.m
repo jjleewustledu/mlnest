@@ -1,4 +1,4 @@
-classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply 
+classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply 
 	%% ABSTRACTAPPLY implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2  
 
@@ -15,11 +15,8 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
     end
     
     properties
-        ignored = {'logL' 'logWt'}
-        MCMC_Counter = 20;  % MCMC counter (pre-judged # steps)
         Object
         sigma0
-        STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
     
     properties (Dependent)
@@ -97,7 +94,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             Obj.logL = this.logLhood(Obj);
         end
         function val  = priorValue(this, mapStruct, key)
-            if lstrfind(this.ignored, key)
+            if lstrfind(this.ignoredObjFields, key)
                 val = mapStruct.init;
                 return
             end
@@ -159,7 +156,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
         %% UTILITY
         
         function flds = ignoreFields(this, flds)
-            for ig = this.ignored
+            for ig = this.ignoredObjFields
                 flds = flds(~strcmp(flds, ig{1}));
             end
         end

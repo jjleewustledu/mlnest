@@ -7,12 +7,15 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  	%% It was developed on Matlab 9.7.0.1261785 (R2019b) Update 3 for MACI64.  Copyright 2020 John Joowon Lee.
  	
 	properties
- 		 n   = 100
-         MAX = 3000
-         
-         map
-         Measurement % tracer concentration of single voxel over time, using dimensionless, scaled parameters
-         timeInterpolants
+        ignoredObjFields = {'logL' 'logWt'}
+        MAX = 500          % # of nested sampling loops, similar to temperature for s.a.
+        MCMC_Counter = 50  % MCMC counter (pre-judged # steps)
+        n = 25             % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
+        STEP_Initial = 0.2 % Initial guess suitable step-size in (0,1)
+        
+        map % containers.Map containing model params as structs with fields:  min, max ,init
+        Measurement % tracer concentration of single voxel over time, using dimensionless, scaled parameters
+        timeInterpolants
  	end
 
 	methods 
@@ -96,34 +99,51 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  			%  @param measurement
             %  @param timeInterpolants
             %  @param paramMap
+            %  @param MAX
+            %  @param MCMC_Counter
+            %  @param n
+            %  @param STEP_Initial
+            %  @param sigma0
+            %  @param modelName
             
             ip = inputParser;            
             ip.KeepUnmatched = true;
             addParameter(ip, 'measurement', [], @isnumeric)
-            addParameter(ip, 'paramMap', containers.Map, @(x) isa(x, 'containers.Map'))
             addParameter(ip, 'timeInterpolants', [], @isnumeric)
+            addParameter(ip, 'paramMap', containers.Map, @(x) isa(x, 'containers.Map'))
+            addParameter(ip, 'MAX', [], @isnumeric)
+            addParameter(ip, 'MCMC_Counter', [], @isnumeric)
+            addParameter(ip, 'n', [], @isnumeric)
+            addParameter(ip, 'STEP_Initial', [], @isnumeric)
             addParameter(ip, 'sigma0', [], @isnumeric)
             addParameter(ip, 'modelName', 'GeneralizedGammaDistributionP', @ischar)
             parse(ip, varargin{:})
             ipr = ip.Results;
 
             this.Measurement = ipr.measurement;
-            this.map = ipr.paramMap;
             this.timeInterpolants = ipr.timeInterpolants; 
+            this.map = ipr.paramMap;
+            this.MAX = ipr.MAX;
+            this.MCMC_Counter = ipr.MCMC_Counter;
+            this.n = ipr.n;
+            this.STEP_Initial = ipr.STEP_Initial;
             this.sigma0 = ipr.sigma0;
             this.modelName_ = ipr.modelName;
             
             switch this.modelName_
                 case 'GammaDistribution'
+                    this.ignored = [this.ignored {'p' 'w'}];
                     this.estimatorGamma_ = @(obj_) this.estimatorGamma(obj_);
                 case 'GammaDistributionP'
+                    this.ignored = [this.ignored 'p'];
                     this.estimatorGamma_ = @(obj_) this.estimatorGammaP(obj_);
                 case 'GeneralizedGammaDistribution'
+                    this.ignored = [this.ignored 'w'];
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGamma(obj_);
                 case 'GeneralizedGammaDistributionP'
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGammaP(obj_);
                 otherwise
-                    error('mlnest:NotImplementedError', 'GammaDistributions.kernel.modelName_->%s', this.modelName_)                
+                    error('mlnest:NotImplementedError', 'GammaDistributions.ctor.modelName_->%s', this.modelName_)                
             end
  		end
     end 

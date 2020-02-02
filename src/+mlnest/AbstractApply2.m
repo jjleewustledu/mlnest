@@ -1,4 +1,4 @@
-classdef AbstractApply2 < handle & mlnest.AbstractApply
+classdef (Abstract) AbstractApply2 < handle & mlnest.AbstractApply
 	%% ABSTRACTAPPLY2 implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2  
 
@@ -60,7 +60,7 @@ classdef AbstractApply2 < handle & mlnest.AbstractApply
             acceptRejectRatio = accept/reject;
         end
         function val  = priorValue(this, mapStruct, key)            
-            if lstrfind(this.ignored, key)
+            if lstrfind(this.ignoredObjFields, key)
                 val = mapStruct.init;
                 return
             end
