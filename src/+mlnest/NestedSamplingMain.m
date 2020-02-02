@@ -164,7 +164,8 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
             if isfield(results_, 'chains')
                 figure
                 plotmatrix(results_.chains);
-                title({[class(this.apply) '.results.chains'] cell2str(results_.flds)})
+                flds = results_.flds;
+                title({[class(this.apply) '.results.chains'] cell2str(flds(~strcmp(flds, 'logWt')))})
             end
             this.apply.plotResults()
         end

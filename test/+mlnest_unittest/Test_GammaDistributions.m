@@ -29,6 +29,17 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
         end
         function test_run(this)
             this.testObj_.run(this.testObj_)
+            
+            % # iterates = 3000
+            % Evidence:  ln(Z) = -70.164236 +/- 0.523950
+            % Information:  H = 27.452321 nats = 39.605328 bits
+            % 	a = 0.218827 +/- 0.000067
+            % 	b = 5.645965 +/- 0.000131
+            % 	p = 0.329690 +/- 0.000002
+            % 	t0 = 10.000007 +/- 0.001019
+            % 	w = -0.000020 +/- 0.000000
+            % logL(k = 3000) = -42.709194
+            % logWt(k = 3000) = -77.309360            
         end
         
         function test_Obj2uniform2native(this)
