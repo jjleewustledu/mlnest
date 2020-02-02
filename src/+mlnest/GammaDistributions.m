@@ -37,14 +37,29 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
                 k = t_.^a .* exp(-b*t_);
                 k = mlnest.GammaDistributions.slide(abs(k), t, t0 - t(1));
             end
-            %k = k*b^(a+1)/gamma(a+1);  
+            %k = k*b^(a+1)/gamma(a+1); % lossy
             sumk = sum(k);          
             if sumk > eps
                 k = k/sumk;
             end
         end
         function k = estimatorGammaP(this, Obj)
-            k = this.estimatorGamma(Obj) .* (1 + Obj.w*this.timeInterpolants);
+            a = Obj.a;
+            b = Obj.b;
+            t0 = Obj.t0;
+            t = this.timeInterpolants;
+            
+            if (t(1) >= t0)
+                t_   = t - t0;
+                k = t_.^a .* exp(-b*t_);
+                k = abs(k);
+            else 
+                t_   = t - t(1);
+                k = t_.^a .* exp(-b*t_);
+                k = mlnest.GammaDistributions.slide(abs(k), t, t0 - t(1));
+            end 
+            
+            k = k .* (1 + Obj.w*this.timeInterpolants);
             sumk = sum(k);
             if sumk > eps
                 k = k/sumk;
@@ -60,12 +75,13 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             if (t(1) >= t0) % saves extra flops from slide()
                 t_   = t - t0;
                 k = t_.^a .* exp(-(b*t_).^p);
+                k = abs(k);
             else
                 t_   = t - t(1);
                 k = t_.^a .* exp(-(b*t_).^p);
                 k = mlnest.GammaDistributions.slide(abs(k), t, t0 - t(1));
             end
-            %k = abs(k*p*b^(a+1)/gamma((a+1)/p));   
+            %k = abs(k*p*b^(a+1)/gamma((a+1)/p)); % lossy
             sumk = sum(k);         
             if sumk > eps
                 k = k/sumk;
@@ -81,10 +97,11 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             if (t(1) >= t0) % saves extra flops from slide()
                 t_   = t - t0;
                 k = t_.^a .* exp(-(b*t_).^p);
+                k = abs(k);
             else
                 t_   = t - t(1);
                 k = t_.^a .* exp(-(b*t_).^p);
-                k = mlnest.GammaDistributions2.slide(abs(k), t, t0 - t(1));
+                k = mlnest.GammaDistributions.slide(abs(k), t, t0 - t(1));
             end
             
             k = k .* (1 + Obj.w*this.timeInterpolants);            
