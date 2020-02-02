@@ -69,7 +69,22 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             end
         end
         function k = estimatorGenGammaP(this, Obj)
-            k = this.estimatorGenGamma(Obj) .* (1 + Obj.w*this.timeInterpolants);            
+            a = Obj.a;
+            b = Obj.b;
+            p = Obj.p;
+            t0 = Obj.t0;
+            t = this.timeInterpolants;
+            
+            if (t(1) >= t0) % saves extra flops from slide()
+                t_   = t - t0;
+                k = t_.^a .* exp(-(b*t_).^p);
+            else
+                t_   = t - t(1);
+                k = t_.^a .* exp(-(b*t_).^p);
+                k = mlnest.GammaDistributions2.slide(abs(k), t, t0 - t(1));
+            end
+            
+            k = k .* (1 + Obj.w*this.timeInterpolants);            
             sumk = sum(k);
             if sumk > eps
                 k = k/sumk;
