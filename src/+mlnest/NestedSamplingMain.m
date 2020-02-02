@@ -12,29 +12,45 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
  	%  $Id$ 
 
 	properties 
-        apply
+        nCheckStoppingCondition = 5
         nReports = 10
     end 
     
     properties (Dependent)
+        apply
         map
-        MAX % # of nestings, similar to temperature for s.a.
-        Measurement
-        n % # of sampling particles
+        MAX          % # of nested sampling loops, similar to temperature for s.a.
+        MCMC_Counter % counter for explorting single particle (pre-judged # steps)
+        Measurement  % external data
+        n            % # of sampling particles \sim (log width of outer prior mass)^{-1}
+        sigma0       % of model estimation
+        STEP_Initial % Initial guess suitable step-size in (0,1)
     end
     
     methods %% GET/SET
+        function g = get.apply(this)
+            g = this.apply_;
+        end
         function m = get.map(this)
             m = this.apply.map;
         end
         function m = get.MAX(this)
             m = this.apply.MAX;
         end
+        function m = get.MCMC_Counter(this)
+            m = this.apply.MCMC_Counter;
+        end
         function m = get.Measurement(this)
             m = this.apply.Measurement;
         end
         function m = get.n(this)
             m = this.apply.n;
+        end
+        function g = get.STEP_Initial(this)
+            g = this.apply.STEP_Initial;
+        end
+        function g = get.sigma0(this)
+            g = this.apply.sigma0;
         end
     end
 
@@ -50,12 +66,41 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         end
         function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
             [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
-        end        
+        end    
+        function this = printResults(this, nest, logZ, H, Samples)
+            if (1        == nest || ...
+                this.MAX == nest || ...    
+                0        == mod(nest, floor(this.MAX/this.nReports)))
+                fprintf('-----------------------------------------------------------\n');
+                fprintf('# iterates ~ MAX = %i\n', this.MAX);
+                fprintf('# sampling particles = %f\n', this.n);
+                fprintf('MCMC_Counter = %f\n', this.MCMC_Counter);
+                fprintf('STEP_Initial = %f\n', this.STEP_Initial);
+                fprintf('Stopping criteria = %f\n', nest/(H * this.n))
+                fprintf('Evidence:  ln(Z) = %f +/- %f\n', logZ, sqrt(H/this.n));
+                fprintf('Information:  H = %f nats = %f bits\n', H, H/log(2));
+                fprintf('Model:\n')
+                results_ = this.apply.Results(Samples, nest, logZ);
+                for f = 1:length(results_.flds)
+                    fprintf('\t%s = %f +/- %f\n', ...
+                        results_.flds{f}, ...
+                        results_.moment1(f), ...
+                        sqrt(results_.moment2(f) - results_.moment1(f)^2));
+                end
+                fprintf('\tsigma0 = %f\n', this.sigma0);
+                fprintf('\t%s(k = %i) = %f\n', 'sampled logL',  nest, Samples{nest}.logL);
+                fprintf('\t%s(k = %i) = %f\n', 'sampled logWt', nest, Samples{nest}.logWt);
+            end
+        end
+        function h    = plotResults(this)
+            h = this.apply.plotResults();
+        end
         
   		function this = NestedSamplingMain(app) 
  			%% NESTEDSAMPLINGMAIN 
             %  @param app is an application object implementing mlnest.IApply
             %  @return this
+            %
  			%  Usage:  this = NestedSamplingMain(mlnest.IApply object)
             %  Internally:
             %     Object Obj[n];        // Collection of n objects
@@ -70,11 +115,11 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
             %     int    worst;         // Worst object
             %     int    nest;          // Nested sampling iteration count
             
-            this.apply = app;
-            Obj        = cell(1, this.n);
-            Samples    = cell(1, this.MAX);
-            H          = 0;
-            logZ       = -realmax;
+            this.apply_ = app;
+            Obj         = cell(1, this.n);
+            Samples     = cell(1, this.MAX);
+            H           = 0;
+            logZ        = -realmax;
             
             %% set prior objects
             for i = 1:this.n
@@ -102,9 +147,8 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
                         logZnew;
                     logZ = logZnew;
 
-                    %% posterior samples (optional)
+                    %% posterior samples (optional, for reporting)
                     Samples{nest} = Obj{worst};
-%                    this = this.printResults(nest, logZ, H, Samples);
 
                     %% kill worst object in favour of copy of different survivor
                     copy = mod(floor(this.n * rand()), this.n) + 1;
@@ -116,10 +160,15 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
 
                     %% evolve copied object within constraints
                     [Obj{worst},acceptRejectRatio] = this.Explore(Obj{worst}, logLstar); %#ok<ASGLU>
-%                    this.printAcceptsRejects(nest, acceptRejectRatio);
 
                     %% shrink interval                
                     logwidth = logwidth - 1/this.n;
+                    
+                    if 0 == mod(nest, this.nCheckStoppingCondition)
+                        if this.stoppingConditionMet(nest, H)
+                            break
+                        end
+                    end
                 end %% NESTED SAMPLING LOOP (might be ok to terminate early)
             catch ME
                 handexcept(ME);
@@ -130,7 +179,11 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         end 
     end 
     
-    %% PROTECTED    
+    %% PROTECTED  
+    
+    properties (Access = protected)        
+        apply_
+    end
     
     methods (Static, Access = protected)
         function z = PLUS(x, y)
@@ -151,51 +204,27 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         end
     end 
     
-    %% PRIVATE
-    
-    methods (Access = 'private')    
-        function tf = checkStoppingCondition(this, nest, H)
+    methods (Access = 'protected')    
+        function tf = stoppingConditionMet(this, nest, H)
             tf = nest/(H * this.n) > 4;
         end
         function this = finalize(this, nest, logZ, H, Samples)
-            [results_,this.apply] = this.apply.Results(Samples, nest, logZ);
+            [results_,this.apply_] = this.apply_.Results(Samples, nest, logZ);
             this.printResults(nest, logZ, H, Samples);
+            this.plotResults();
                
             if isfield(results_, 'chains')
                 figure
                 plotmatrix(results_.chains);
                 flds = results_.flds;
-                title({[class(this.apply) '.results.chains'] cell2str(flds(~strcmp(flds, 'logWt')))})
+                title({[class(this.apply) '.results.chains'] cell2str(flds)})
             end
-            this.apply.plotResults()
         end
         function printAcceptsRejects(this, nest, acceptRejectRatio)
             if (1        == nest || ...
                 this.MAX == nest || ...    
                 0        == mod(nest, floor(this.MAX/this.nReports^2)))
                 fprintf('# accepts/# rejects = %f\n', acceptRejectRatio);
-            end
-        end
-        function this = printResults(this, nest, logZ, H, Samples)
-            if (1        == nest || ...
-                this.MAX == nest || ...    
-                0        == mod(nest, floor(this.MAX/this.nReports)))
-                fprintf('-----------------------------------------------------------\n');
-                fprintf('# iterates = %i\n', nest);
-                fprintf('Evidence:  ln(Z) = %f +/- %f\n', logZ, sqrt(H/this.n));
-                fprintf('Information:  H = %f nats = %f bits\n', H, H/log(2));
-                results_ = this.apply.Results(Samples, nest, logZ);
-                
-                for f = 1:length(results_.flds)
-                    if (~strcmp('logL', results_.flds{f}) && ~strcmp('logWt', results_.flds{f}))
-                        fprintf('\t%s = %f +/- %f\n', ...
-                            results_.flds{f}, ...
-                            results_.moment1(f), ...
-                            sqrt(results_.moment2(f) - results_.moment1(f)^2));
-                    end
-                end
-                fprintf('%s(k = %i) = %f\n', 'logL',  nest, Samples{nest}.logL);
-                fprintf('%s(k = %i) = %f\n', 'logWt', nest, Samples{nest}.logWt);
             end
         end
     end

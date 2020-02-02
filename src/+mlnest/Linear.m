@@ -39,7 +39,7 @@ classdef Linear < mlnest.AbstractApply
             this.timeLength = length(this.Measurement);
             
             this.map = containers.Map;
-            this.map('slope') = struct('min', -10, 'max', 10, 'init', 1);
+            this.map('slope')     = struct('min',  -10, 'max',  10, 'init', 0);
             this.map('intercept') = struct('min', -100, 'max', 100, 'init', 0);
             
             this.sigma0 = 0.01;

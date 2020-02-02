@@ -12,13 +12,14 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
     
     properties (Constant)
         logSqrt2pi   = 0.9189385332046727;
-        MCMC_Counter = 20;  % MCMC counter (pre-judged # steps)
-        STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
     
     properties
+        ignored = {'logL' 'logWt'}
+        MCMC_Counter = 20;  % MCMC counter (pre-judged # steps)
         Object
         sigma0
+        STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
     
     properties (Dependent)
@@ -29,8 +30,8 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
         function main = run(application)
             assert(isa(application, 'mlnest.IApply'))
             main = mlnest.NestedSamplingMain(application);
-            save(sprintf('%s_run_%s.mat', ...
-                strrep(class(application), '.', '_'), datestr(now, 'yyyymmddHHMMSS')));
+%            save(sprintf('%s_run_%s.mat', ...
+%                strrep(class(application), '.', '_'), datestr(now, 'yyyymmddHHMMSS')));
         end
     end
     
@@ -45,7 +46,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
         %%
         
         function [Obj,acceptRejectRatio] = Explore(this, Obj, logLstar)
-            %% EXPLORE evolves object within likelihood constraint
+            %% EXPLORE evolves sampling object within likelihood constraint
             %  Usage:  obj = this.Explore(Obj, log_likelihood_star)
             %                             ^ objects being evolved
             %                                  ^ likelihood constraint L > Lstar
@@ -58,8 +59,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
 
                 %% Trial object
                 flds = fields(Try);
-                flds = flds(~strcmp(flds, 'logL'));
-                flds = flds(~strcmp(flds, 'logWt'));
+                flds = this.ignoreFields(flds);
                 for f = 1:length(flds)                    
                     Try.(flds{f}) = Obj.(flds{f}) + step*(2*rand() - 1.);  % |move| < step
                     Try.(flds{f}) = Try.(flds{f}) - floor(Try.(flds{f}));  % wraparound to stay within (0,1)
@@ -97,12 +97,17 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             Obj.logL = this.logLhood(Obj);
         end
         function val  = priorValue(this, mapStruct, key)
+            if lstrfind(this.ignored, key)
+                val = mapStruct.init;
+                return
+            end
+            
             init_ = this.vec2uniform(mapStruct.init, this.limits(key));
-            min_  = this.vec2uniform(mapStruct.min, this.limits(key));
-            max_  = this.vec2uniform(mapStruct.max, this.limits(key));
+            min_  = this.vec2uniform(mapStruct.min,  this.limits(key));
+            max_  = this.vec2uniform(mapStruct.max,  this.limits(key));
             std_  = 0.25*abs(max_ - min_);
             val   = init_ + randn()*std_;
-            while val < min_ || max_ < val
+            while val < min_ || max_ < val % from Josh and Larry
                 val = init_ + randn()*std_;
             end
             
@@ -124,6 +129,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             %                                      ^ evidence (= total weight = SUM[samples] weight)
             
             flds = fields(Samples{1});
+            flds = this.ignoreFields(flds);
             Obj1 = structfun(@(x) 0, Samples{1}, 'UniformOutput', false); 
             Obj2 = Obj1;
             chains = zeros(nest, length(flds));
@@ -144,7 +150,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             r.flds = flds;            
             r.Obj1 = Obj1;
             r.Obj2 = Obj2;
-            r.chains = chains(:, ~strcmp(flds, 'logWt'));
+            r.chains = chains;
             r.moment1 = this.Obj2vec(this.Obj2native(Obj1));
             r.moment2 = this.Obj2vec(this.Obj2native(Obj2));
             this.results_ = r;
@@ -152,6 +158,11 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
         
         %% UTILITY
         
+        function flds = ignoreFields(this, flds)
+            for ig = this.ignored
+                flds = flds(~strcmp(flds, ig{1}));
+            end
+        end
         function vec = limits(this, key)
             vec = [this.map(key).min this.map(key).max];
         end
@@ -159,8 +170,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             %% rescale to native units
             
             flds = fields(o);
-            flds = flds(~strcmp(flds, 'logL'));
-            flds = flds(~strcmp(flds, 'logWt'));
+            flds = this.ignoreFields(flds);
             for f = flds'             
                 lims = this.limits(f{1});
                 o.(f{1}) = lims(2)*o.(f{1}) + lims(1)*(1 - o.(f{1}));
@@ -170,27 +180,26 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             %% rescale to (0,1)
             
             flds = fields(o);
-            flds = flds(~strcmp(flds, 'logL'));
-            flds = flds(~strcmp(flds, 'logWt'));
+            flds = this.ignoreFields(flds);
             for f = flds'
                 lims = this.limits(f{1});
                 u = (o.(f{1}) - lims(1))/(lims(2) - lims(1));
                 o.(f{1}) = u;
             end
         end
-        function vec = Obj2vec(~, obj)
+        function vec = Obj2vec(this, obj)
             flds = fields(obj);
-            %flds = flds(~strcmp(flds, 'logL') & ~strcmp(flds, 'logWt'));
+            flds = this.ignoreFields(flds);
             vec = zeros(1, length(flds));
             for idx = 1:length(vec)
                 vec(idx) = obj.(flds{idx});
             end
         end
-        function plotResults(this)
+        function h = plotResults(this)
             figure;
             est = this.Estimation(this.results.Obj1);
-            plot(1:length(this.Measurement), this.Measurement, 'o', ...
-                 1:length(est), est, '-+')
+            h = plot(1:length(this.Measurement), this.Measurement, 'o', ...
+                     1:length(est), est, '-+');
             title([class(this) '.plotResults()'])
             legend('measurement', 'estimation')
         end
