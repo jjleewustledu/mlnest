@@ -1,4 +1,4 @@
-classdef AbstractApply < mlnest.IApply 
+classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply 
 	%% ABSTRACTAPPLY implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2  
 
@@ -12,13 +12,17 @@ classdef AbstractApply < mlnest.IApply
     
     properties (Constant)
         logSqrt2pi   = 0.9189385332046727;
-        MCMC_Counter = 20;  % MCMC counter (pre-judged # steps)
+        MCMC_Counter = 40;  % MCMC counter (pre-judged # steps)
         STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
     
     properties
         Object
         sigma0
+    end
+    
+    properties (Dependent)        
+        results
     end
     
     methods (Static)
@@ -31,6 +35,15 @@ classdef AbstractApply < mlnest.IApply
     end
     
     methods     
+        
+        %% GET
+        
+        function g = get.results(this)
+            g = this.results_;
+        end
+        
+        %%
+        
         function [Obj,acceptRejectRatio] = Explore(this, Obj, logLstar)
             %% EXPLORE evolves object within likelihood constraint
             %  Usage:  obj = this.Explore(Obj, log_likelihood_star)
@@ -83,50 +96,97 @@ classdef AbstractApply < mlnest.IApply
             end
             Obj.logL = this.logLhood(Obj);
         end
-        function r   = Results(this, Samples, nest, logZ)
+        function [r,this] = Results(this, Samples, nest, logZ)
             %% RESULTS prints the posterior properties; here mean and stddev of x, y
+            %  @return struct with fields:  
+            %          chains, ObjMoment1, ObjMoment2:  in reduced uniform variables;
+            %          moment1, moment2:  in native variable units;
+            %          flds:  fields of Obj.
+            %  @return this with updated this.results.
+            %
             %  Usage:  this.Results(Samples, nest, logZ)
             %                       ^ objects defining posterior
             %                                ^ # samples 
             %                                      ^ evidence (= total weight = SUM[samples] weight)
-
-            flds    = fields(Samples{1});
-            moment1 = zeros(1, length(flds));
-            moment2 = zeros(1, length(flds));
-            chains  = zeros(nest, length(flds));
-            for i = 1:nest
-                w  = exp(Samples{i}.logWt - logZ); % proportional weight
-                for f = 1:length(flds)
-                    if (~strcmp('logL', flds{f}) && ~strcmp('logWt', flds{f}))
-                        fvalue = this.uniform2limits(Samples{i}.(flds{f}), this.limits(flds{f}));
-                        chains(i, f) = fvalue;
-                        moment1(f) = moment1(f) + w*fvalue;
-                        moment2(f) = moment2(f) + w*fvalue^2;
-                    end
-                    if strcmp('logL', flds{f})
-                        chains(i, f) = Samples{i}.logL;
-                    end
-                    if strcmp('logWt', flds{f})
-                        chains(i, f) = Samples{i}.logWt;
-                    end
+            
+            flds = fields(Samples{1});
+            Obj1 = structfun(@(x) 0, Samples{1}, 'UniformOutput', false); 
+            Obj2 = Obj1;
+            chains = zeros(nest, length(flds));
+            
+            for ni = 1:nest
+                
+                w  = exp(Samples{ni}.logWt - logZ); % proportional weight
+                
+                for f = 1:length(flds)                    
+                    chains(ni, f) = Samples{ni}.(flds{f});                                          
+                    Obj1.(flds{f}) = Obj1.(flds{f}) + w*Samples{ni}.(flds{f});
+                    Obj2.(flds{f}) = Obj2.(flds{f}) + w*(Samples{ni}.(flds{f}))^2;
                 end
             end
-            r.flds    = flds;
-            r.moment1 = moment1;
-            r.moment2 = moment2;
-            r.chains  = chains(:, ~strcmp(flds, 'logWt'));
+            
+            %% gather
+            
+            r.flds = flds;            
+            r.Obj1 = Obj1;
+            r.Obj2 = Obj2;
+            r.chains = chains(:, ~strcmp(flds, 'logWt'));
+            r.moment1 = this.Obj2vec(this.Obj2native(Obj1));
+            r.moment2 = this.Obj2vec(this.Obj2native(Obj2));
+            this.results_ = r;
         end
-        function u   = limits2uniform(~, y, lims)
-            u = (y - lims(1))/(lims(2) - lims(1));
+        
+        %% UTILITY
+        
+        function vec  = limits(this, key)
+            vec = [this.map(key).min this.map(key).max];
         end
-        function y   = uniform2limits(~, u, lims)
-            y = lims(2)*u + lims(1)*(1 - u);
-        end 
+        function o = Obj2uniform(this, o)
+            %% rescale to (0,1)
+            
+            for f = fields(o)'
+                if ~strcmp(f{1}, 'logL') && ~strcmp(f{1}, 'logWt')
+                    lims = this.limits(f{1});
+                    u = (o.(f{1}) - lims(1))/(lims(2) - lims(1));
+                    o.(f{1}) = u;
+                end
+            end
+        end
+        function o = Obj2native(this, o)
+            %% rescale to native units
+            
+            for f = fields(o)'
+                if ~strcmp(f{1}, 'logL') && ~strcmp(f{1}, 'logWt')                    
+                    lims = this.limits(f{1});
+                    o.(f{1}) = lims(2)*o.(f{1}) + lims(1)*(1 - o.(f{1}));
+                end
+            end
+        end
+        function vec = Obj2vec(~, obj)
+            flds = fields(obj);
+            %flds = flds(~strcmp(flds, 'logL') & ~strcmp(flds, 'logWt'));
+            vec = zeros(1, length(flds));
+            for idx = 1:length(vec)
+                vec(idx) = obj.(flds{idx});
+            end
+        end
+        function plotResults(this)
+            figure;
+            est = this.Estimation(this.results.Obj1);
+            plot(1:length(this.Measurement), this.Measurement, 'o', ...
+                 1:length(est), est, '-+')
+            title([class(this) '.plotResults()'])
+            legend('measurement', 'estimation')
+        end
     end
     
     %% PROTECTED
     
-    methods (Static, Access = 'protected')
+    properties (Access = protected)
+        results_
+    end
+    
+    methods (Static, Access = protected)
         function z = PLUS(x, y)
             %% logarithmic addition log(exp(x) + exp(y))
             %  protects against over/underflow of exponential quantities such as likelihood \mathcal{L}^*
@@ -145,9 +205,14 @@ classdef AbstractApply < mlnest.IApply
         end
     end 
     
-    methods (Access = 'protected')        
-        function vec  = limits(this, key)
-            vec = [this.map(key).min this.map(key).max];
+    %% HIDDEN & DEPRECATED
+    
+    methods (Hidden)
+        function u   = limits2uniform(~, y, lims)
+            u = (y - lims(1))/(lims(2) - lims(1));
+        end
+        function y   = uniform2limits(~, u, lims)
+            y = lims(2)*u + lims(1)*(1 - u);
         end
     end
 

@@ -24,10 +24,8 @@ classdef Linear < mlnest.AbstractApply
 
 	methods
         function est  = Estimation(this, Obj)
-            slope     = this.uniform2limits(Obj.slope,     this.limits('slope'));
-            intercept = this.uniform2limits(Obj.intercept, this.limits('intercept'));
-            
-            est = slope*this.timeInterpolants + intercept;
+            obj = this.Obj2native(Obj);            
+            est = obj.slope*this.timeInterpolants + obj.intercept;
         end
         
         function this = Linear

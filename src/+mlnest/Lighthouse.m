@@ -79,8 +79,6 @@ classdef Lighthouse < mlnest.AbstractApply
         
         %%
         
-        function obj  = Estimation(~, obj)
-        end
         function logL = logLhood(this, x, y)
             %% LOGLHOOD
             %  Usage:  log_likelihood = this.logLhood(x, y)
@@ -140,7 +138,7 @@ classdef Lighthouse < mlnest.AbstractApply
                 acceptRejectRatio = accept/reject;
             end
         end
-        function r    = Results(~, Samples, nest, logZ)
+        function [r,this] = Results(this, Samples, nest, logZ)
             %% RESULTS prints the posterior properties; here mean and stddev of x, y
             %  Usage:  this.Results(Samples, nest, logZ)
             %                       ^ objects defining posterior
@@ -159,10 +157,11 @@ classdef Lighthouse < mlnest.AbstractApply
             fprintf('mean(x) = %g, stddev(x) = %g\n', x, sqrt(xx-x*x));
             fprintf('mean(y) = %g, stddev(y) = %g\n', y, sqrt(yy-y*y));
             
-            r = {};
+            r.flds = fields(Samples{1});
+            r.moment1 = [0 0 x y];
+            r.moment2 = [0 0 xx yy];
+            this.results_ = r;
         end
-        function u   = uniform2limits(~, u, varargin)            
-        end 
         
         function this = Lighthouse(varargin)            
             this.Measurement =       [ 4.73,  0.45, -1.73,  1.09,  2.19,  0.12, ...
@@ -174,7 +173,16 @@ classdef Lighthouse < mlnest.AbstractApply
                  16.19,  2.75, -2.38, -1.79,  6.50,-18.53,  0.72,  0.94,  3.64, ...
                   1.94, -0.11,  1.57,  0.57]; % arrival positions
         end
- 	end 
+    end 
+    
+    %% HIDDEN
+    
+    methods (Hidden)        
+        function obj  = Estimation(~, obj)
+        end
+        function plotResults(~)
+        end
+    end
 
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy 
 end

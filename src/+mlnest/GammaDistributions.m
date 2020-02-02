@@ -1,4 +1,4 @@
-classdef GammaDistributions < mlnest.AbstractApply
+classdef GammaDistributions < handle & mlnest.AbstractApply
 	%% GAMMADISTRIBUTIONS  
 
 	%  $Revision$
@@ -17,7 +17,7 @@ classdef GammaDistributions < mlnest.AbstractApply
 
 	methods 
         function est  = Estimation(this, Obj)
-            est = this.estimatorGamma_(Obj);
+            est = this.estimatorGamma_(this.Obj2native(Obj));
         end
         function k = estimatorGamma(this, Obj)
             a = Obj.a;

@@ -1,4 +1,4 @@
-classdef IApply  
+classdef IApply < handle
 	%% IAPPLY is an interface for application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2  
 
@@ -16,6 +16,7 @@ classdef IApply
         Measurement
         Object % struct
         n      % int
+        results
         sigma0
  	end 
 

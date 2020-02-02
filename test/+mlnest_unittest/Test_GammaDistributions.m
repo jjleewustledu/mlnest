@@ -30,6 +30,44 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
         function test_run(this)
             this.testObj_.run(this.testObj_)
         end
+        
+        function test_Obj2uniform2native(this)
+            o.logL = -10;
+            o.logWt = -1;
+            o.a = 10;
+            o.b = 20;
+            o.p = 2;
+            o.t0 = -20;
+            o.w = -1;
+            
+            u = this.testObj.Obj2uniform(o);
+            this.verifyEqual(u.a, 1)
+            this.verifyEqual(u.b, 1)
+            this.verifyEqual(u.p, 1)
+            this.verifyEqual(u.t0, 0)
+            this.verifyEqual(u.w, 0)
+            
+            n = this.testObj.Obj2native(u);
+            this.verifyEqual(n.a, 10)
+            this.verifyEqual(n.b, 20)
+            this.verifyEqual(n.p, 2)
+            this.verifyEqual(n.t0, -20)
+            this.verifyEqual(n.w, -1)
+        end
+        function test_Obj2vec(this)
+            o.logL = -10;
+            o.logWt = -1;
+            o.a = 10;
+            o.b = 20;
+            o.p = 2;
+            o.t0 = -20;
+            o.w = -1;
+            
+            disp(fields(o))
+            
+            v = this.testObj.Obj2vec(o);
+            this.verifyEqual(v, [-10 -1 10 20 2 -20 -1])
+        end
 	end
 
  	methods (TestClassSetup)

@@ -1,4 +1,4 @@
-classdef NestedSamplingMain < mlnest.AbstractApply
+classdef NestedSamplingMain < handle & matlab.mixin.Copyable
 	%% NESTEDSAMPLINGMAIN implements main.c from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.2.4.  
     %  (GNU General Public License software, (C) Sivia and Skilling 2006)
@@ -14,7 +14,6 @@ classdef NestedSamplingMain < mlnest.AbstractApply
 	properties 
         apply
         nReports = 10
-        results
     end 
     
     properties (Dependent)
@@ -43,19 +42,6 @@ classdef NestedSamplingMain < mlnest.AbstractApply
         function est  = Estimation(this, varargin)
             est = this.apply.Estimation(varargin{:});
         end
-        function est  = EstimationResults(this)
-            if isempty(this.results)
-                est = [];
-                return
-            end
-            for f = this.results.flds'
-                if (~strcmp('logL', f{1}) && ~strcmp('logWt', f{1}))
-                    [~,idx] = max(cell2mat(cellfun(@(x) strcmp(x, f{1}), this.results.flds, 'UniformOutput', false)));
-                    obj.(f{1}) = this.limits2uniform(this.results.moment1(idx), this.limits(f{1}));
-                end
-            end
-            est = this.Estimation(obj);            
-        end  
         function logL = logLhood(this, varargin)
             logL = this.apply.logLhood(varargin{:});
         end
@@ -65,17 +51,6 @@ classdef NestedSamplingMain < mlnest.AbstractApply
         function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
             [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
         end        
-        function plotResults(this)
-            figure;
-            est = this.EstimationResults();
-            plot(1:length(this.Measurement), this.Measurement, 'o', ...
-                 1:length(est), est, '-+')
-            title([class(this) '.plotResults()'])
-            legend('measurement', 'estimation')
-        end
-        function dat = Results(this, smpls, nest, logZ)
-            dat = this.apply.Results(smpls, nest, logZ);
-        end
         
   		function this = NestedSamplingMain(app) 
  			%% NESTEDSAMPLINGMAIN 
@@ -150,9 +125,30 @@ classdef NestedSamplingMain < mlnest.AbstractApply
                 handexcept(ME);
             end
             
-            %% exit with evidence Z, information H, and optional posterior Samples
-            this = this.exit(nest, logZ, H, Samples);            
+            %% finalize with evidence Z, information H, and optional posterior Samples
+            this = this.finalize(nest, logZ, H, Samples);            
         end 
+    end 
+    
+    %% PROTECTED    
+    
+    methods (Static, Access = protected)
+        function z = PLUS(x, y)
+            %% logarithmic addition log(exp(x) + exp(y))
+            %  protects against over/underflow of exponential quantities such as likelihood \mathcal{L}^*
+            %  by storing logarithms
+            
+            if (x > y)
+                z = x + log(1 + exp(y - x));
+            else
+                z = y + log(1 + exp(x - y));
+            end
+        end
+        function u = UNIFORM
+            %% uniform inside (0,1)
+           
+            u = rand;
+        end
     end 
     
     %% PRIVATE
@@ -161,17 +157,16 @@ classdef NestedSamplingMain < mlnest.AbstractApply
         function tf = checkStoppingCondition(this, nest, H)
             tf = nest/(H * this.n) > 4;
         end
-        function this = exit(this, nest, logZ, H, Samples)
-            this.results = this.Results(Samples, nest, logZ);
+        function this = finalize(this, nest, logZ, H, Samples)
+            [results_,this.apply] = this.apply.Results(Samples, nest, logZ);
             this.printResults(nest, logZ, H, Samples);
-            if isempty(this.results)
-                return
+               
+            if isfield(results_, 'chains')
+                figure
+                plotmatrix(results_.chains);
+                title({[class(this.apply) '.results.chains'] cell2str(results_.flds)})
             end
-                
-            figure
-            plotmatrix(this.results.chains);
-            title([class(this.apply) '.results.chains'])
-            this.plotResults()
+            this.apply.plotResults()
         end
         function printAcceptsRejects(this, nest, acceptRejectRatio)
             if (1        == nest || ...
@@ -188,17 +183,14 @@ classdef NestedSamplingMain < mlnest.AbstractApply
                 fprintf('# iterates = %i\n', nest);
                 fprintf('Evidence:  ln(Z) = %g +/- %g\n', logZ, sqrt(H/this.n));
                 fprintf('Information:  H = %g nats = %g bits\n', H, H/log(2));
-                this.results = this.Results(Samples, nest, logZ);
-                if isempty(this.results)
-                    return
-                end
+                results_ = this.apply.Results(Samples, nest, logZ);
                 
-                for f = 1:length(this.results.flds)
-                    if (~strcmp('logL', this.results.flds{f}) && ~strcmp('logWt', this.results.flds{f}))
+                for f = 1:length(results_.flds)
+                    if (~strcmp('logL', results_.flds{f}) && ~strcmp('logWt', results_.flds{f}))
                         fprintf('\t%s = %g +/- %g\n', ...
-                            this.results.flds{f}, ...
-                            this.results.moment1(f), ...
-                            sqrt(this.results.moment2(f) - this.results.moment1(f)^2));
+                            results_.flds{f}, ...
+                            results_.moment1(f), ...
+                            sqrt(results_.moment2(f) - results_.moment1(f)^2));
                     end
                 end
                 fprintf('%s(k = %i) = %g\n', 'logL',  nest, Samples{nest}.logL);
