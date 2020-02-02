@@ -35,24 +35,24 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
             o.logL = -10;
             o.logWt = -1;
             o.a = 10;
-            o.b = 20;
+            o.b = 10;
             o.p = 2;
-            o.t0 = -20;
-            o.w = -1;
-            
+            o.t0 = 0;
+            o.w = -1e-3;
+
             u = this.testObj.Obj2uniform(o);
             this.verifyEqual(u.a, 1)
             this.verifyEqual(u.b, 1)
             this.verifyEqual(u.p, 1)
             this.verifyEqual(u.t0, 0)
             this.verifyEqual(u.w, 0)
-            
+
             n = this.testObj.Obj2native(u);
-            this.verifyEqual(n.a, 10)
-            this.verifyEqual(n.b, 20)
-            this.verifyEqual(n.p, 2)
-            this.verifyEqual(n.t0, -20)
-            this.verifyEqual(n.w, -1)
+            this.verifyEqual(n.a, o.a)
+            this.verifyEqual(n.b, o.b)
+            this.verifyEqual(n.p, o.p)
+            this.verifyEqual(n.t0, o.t0)
+            this.verifyEqual(n.w, o.w)
         end
         function test_Obj2vec(this)
             o.logL = -10;
@@ -74,21 +74,21 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
 		function setupGammaDistributions(this)
  			import mlnest.*;
             this.map = containers.Map;
-            this.map('a')        = struct('min',   0.1,  'max',  10);
-            this.map('b')        = struct('min',   0.01, 'max',  20);
-            this.map('p')        = struct('min',   0.2,  'max',   2);
-            this.map('t0')       = struct('min', -20,    'max',  20);
-            this.map('w')        = struct('min',  -1,    'max',   1);
+            this.map('a')        = struct('min',   0.1,  'max',  10,    'init', 0.2);
+            this.map('b')        = struct('min',   1,    'max',  10,    'init', 5);
+            this.map('p')        = struct('min',   0.2,  'max',   2,    'init', 1/3);
+            this.map('t0')       = struct('min',   0,    'max',  20,    'init', 10);
+            this.map('w')        = struct('min',  -1e-3, 'max',   1e-3, 'init', 0);
  			this.testObj_ = GammaDistributions( ...
                 'paramMap', this.map, ...
                 'timeInterpolants', 0:1:99, ...
                 'sigma0', 0.001, ...
                 'modelName', 'GeneralizedGammaDistributionP');
             Obj.a = 0.2;
-            Obj.b = 6;
+            Obj.b = 5;
             Obj.p = 1/3;
             Obj.t0 = 10;
-            Obj.w = 0.05;
+            Obj.w = 0;
             this.testObj_.Measurement = this.testObj_.estimatorGenGammaP(Obj);
  		end
 	end

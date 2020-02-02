@@ -12,7 +12,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
     
     properties (Constant)
         logSqrt2pi   = 0.9189385332046727;
-        MCMC_Counter = 40;  % MCMC counter (pre-judged # steps)
+        MCMC_Counter = 20;  % MCMC counter (pre-judged # steps)
         STEP_Initial = 0.1; % Initial guess suitable step-size in (0,1)
     end
     
@@ -21,7 +21,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
         sigma0
     end
     
-    properties (Dependent)        
+    properties (Dependent)
         results
     end
     
@@ -34,7 +34,7 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
         end
     end
     
-    methods     
+    methods
         
         %% GET
         
@@ -58,11 +58,11 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
 
                 %% Trial object
                 flds = fields(Try);
+                flds = flds(~strcmp(flds, 'logL'));
+                flds = flds(~strcmp(flds, 'logWt'));
                 for f = 1:length(flds)                    
-                    if (~strcmp('logL', flds{f}) && ~strcmp('logWt', flds{f}))
-                        Try.(flds{f}) = Obj.(flds{f}) + step*(2*rand() - 1.);  % |move| < step
-                        Try.(flds{f}) = Try.(flds{f}) - floor(Try.(flds{f}));        % wraparound to stay within (0,1)
-                    end
+                    Try.(flds{f}) = Obj.(flds{f}) + step*(2*rand() - 1.);  % |move| < step
+                    Try.(flds{f}) = Try.(flds{f}) - floor(Try.(flds{f}));  % wraparound to stay within (0,1)
                 end
                 Try.logL = this.logLhood(Try); % trial likelihood value
                 
@@ -86,15 +86,29 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
             positive   = this.Measurement > 0;
             EoverM     = Estimation(positive)./this.Measurement(positive);
             Q          = sum((1 - EoverM).^2);
-            logL       = -0.5 * Q/this.sigma0^2;
+            logL       = -0.5*Q/this.sigma0^2;
         end
         function Obj  = Prior(this, ~)
             Obj = struct('logL',  [], 'logWt', []);
             keys = this.map.keys;
             for k = 1:length(keys)
-                Obj.(keys{k}) = rand();
+                Obj.(keys{k}) = this.priorValue(this.map(keys{k}), keys{k});
             end
             Obj.logL = this.logLhood(Obj);
+        end
+        function val  = priorValue(this, mapStruct, key)
+            init_ = this.vec2uniform(mapStruct.init, this.limits(key));
+            min_  = this.vec2uniform(mapStruct.min, this.limits(key));
+            max_  = this.vec2uniform(mapStruct.max, this.limits(key));
+            std_  = 0.25*abs(max_ - min_);
+            val   = init_ + randn()*std_;
+            while val < mapStruct.min || mapStruct.max < val
+                val = mapStruct.init + std_*randn();
+            end
+            
+            % surprisingly inferior:
+            % val = val - floor(val);
+            % val = val - (val - mod(val - min_, max_ - min_)) + min_;
         end
         function [r,this] = Results(this, Samples, nest, logZ)
             %% RESULTS prints the posterior properties; here mean and stddev of x, y
@@ -138,28 +152,30 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
         
         %% UTILITY
         
-        function vec  = limits(this, key)
+        function vec = limits(this, key)
             vec = [this.map(key).min this.map(key).max];
-        end
-        function o = Obj2uniform(this, o)
-            %% rescale to (0,1)
-            
-            for f = fields(o)'
-                if ~strcmp(f{1}, 'logL') && ~strcmp(f{1}, 'logWt')
-                    lims = this.limits(f{1});
-                    u = (o.(f{1}) - lims(1))/(lims(2) - lims(1));
-                    o.(f{1}) = u;
-                end
-            end
         end
         function o = Obj2native(this, o)
             %% rescale to native units
             
-            for f = fields(o)'
-                if ~strcmp(f{1}, 'logL') && ~strcmp(f{1}, 'logWt')                    
-                    lims = this.limits(f{1});
-                    o.(f{1}) = lims(2)*o.(f{1}) + lims(1)*(1 - o.(f{1}));
-                end
+            flds = fields(o);
+            flds = flds(~strcmp(flds, 'logL'));
+            flds = flds(~strcmp(flds, 'logWt'));
+            for f = flds'             
+                lims = this.limits(f{1});
+                o.(f{1}) = lims(2)*o.(f{1}) + lims(1)*(1 - o.(f{1}));
+            end
+        end
+        function o = Obj2uniform(this, o)
+            %% rescale to (0,1)
+            
+            flds = fields(o);
+            flds = flds(~strcmp(flds, 'logL'));
+            flds = flds(~strcmp(flds, 'logWt'));
+            for f = flds'
+                lims = this.limits(f{1});
+                u = (o.(f{1}) - lims(1))/(lims(2) - lims(1));
+                o.(f{1}) = u;
             end
         end
         function vec = Obj2vec(~, obj)
@@ -203,17 +219,17 @@ classdef AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApply
            
             u = rand;
         end
+        function y = vec2native(u, lims)
+            y = lims(2)*u + lims(1)*(1 - u);
+        end
+        function u = vec2uniform(y, lims)
+            u = (y - lims(1))/(lims(2) - lims(1));
+        end
     end 
     
     %% HIDDEN & DEPRECATED
     
     methods (Hidden)
-        function u   = limits2uniform(~, y, lims)
-            u = (y - lims(1))/(lims(2) - lims(1));
-        end
-        function y   = uniform2limits(~, u, lims)
-            y = lims(2)*u + lims(1)*(1 - u);
-        end
     end
 
 	%  Created with Newcl by John J. Lee after newfcn by Frank Gonzalez-Morphy 

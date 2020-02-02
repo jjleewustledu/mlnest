@@ -12,7 +12,7 @@ classdef Linear < mlnest.AbstractApply
     
 	properties 
  		 n   = 100
-         MAX = 1000
+         MAX = 3000
          
          Measurement % tracer concentration of single voxel over time, using dimensionless, scaled parameters
          timeFinal
@@ -24,12 +24,14 @@ classdef Linear < mlnest.AbstractApply
 
 	methods
         function est  = Estimation(this, Obj)
-            obj = this.Obj2native(Obj);            
-            est = obj.slope*this.timeInterpolants + obj.intercept;
+            Obj = this.Obj2native(Obj);            
+            est = Obj.slope*this.timeInterpolants + Obj.intercept;
         end
         
         function this = Linear
-            this.Measurement = 0:119;
+            SLOPE = 2;
+            INTERCEPT = -20;
+            this.Measurement = SLOPE*(0:119) + INTERCEPT;
             this.timeFinal = 119;
             
             this.dt = this.timeFinal/length(this.Measurement);
@@ -37,8 +39,8 @@ classdef Linear < mlnest.AbstractApply
             this.timeLength = length(this.Measurement);
             
             this.map = containers.Map;
-            this.map('slope') = struct('min', 0.1, 'max', 10);
-            this.map('intercept') = struct('min', -1, 'max', 1);
+            this.map('slope') = struct('min', -10, 'max', 10, 'init', 1);
+            this.map('intercept') = struct('min', -100, 'max', 100, 'init', 0);
             
             this.sigma0 = 0.01;
         end

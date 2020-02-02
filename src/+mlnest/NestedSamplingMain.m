@@ -18,9 +18,9 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
     
     properties (Dependent)
         map
-        MAX
+        MAX % # of nestings, similar to temperature for s.a.
         Measurement
-        n
+        n % # of sampling particles
     end
     
     methods %% GET/SET
@@ -172,7 +172,7 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
             if (1        == nest || ...
                 this.MAX == nest || ...    
                 0        == mod(nest, floor(this.MAX/this.nReports^2)))
-                fprintf('# accepts/# rejects = %g\n', acceptRejectRatio);
+                fprintf('# accepts/# rejects = %f\n', acceptRejectRatio);
             end
         end
         function this = printResults(this, nest, logZ, H, Samples)
@@ -181,20 +181,20 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
                 0        == mod(nest, floor(this.MAX/this.nReports)))
                 fprintf('-----------------------------------------------------------\n');
                 fprintf('# iterates = %i\n', nest);
-                fprintf('Evidence:  ln(Z) = %g +/- %g\n', logZ, sqrt(H/this.n));
-                fprintf('Information:  H = %g nats = %g bits\n', H, H/log(2));
+                fprintf('Evidence:  ln(Z) = %f +/- %f\n', logZ, sqrt(H/this.n));
+                fprintf('Information:  H = %f nats = %f bits\n', H, H/log(2));
                 results_ = this.apply.Results(Samples, nest, logZ);
                 
                 for f = 1:length(results_.flds)
                     if (~strcmp('logL', results_.flds{f}) && ~strcmp('logWt', results_.flds{f}))
-                        fprintf('\t%s = %g +/- %g\n', ...
+                        fprintf('\t%s = %f +/- %f\n', ...
                             results_.flds{f}, ...
                             results_.moment1(f), ...
                             sqrt(results_.moment2(f) - results_.moment1(f)^2));
                     end
                 end
-                fprintf('%s(k = %i) = %g\n', 'logL',  nest, Samples{nest}.logL);
-                fprintf('%s(k = %i) = %g\n', 'logWt', nest, Samples{nest}.logWt);
+                fprintf('%s(k = %i) = %f\n', 'logL',  nest, Samples{nest}.logL);
+                fprintf('%s(k = %i) = %f\n', 'logWt', nest, Samples{nest}.logWt);
             end
         end
     end
