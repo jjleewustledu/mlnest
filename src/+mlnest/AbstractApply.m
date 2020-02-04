@@ -29,6 +29,26 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             assert(isa(application, 'mlnest.IApply'))
             main = mlnest.NestedSamplingMain(application);
         end
+        function        run_varying(application, par, rng)
+            assert(ischar(par))
+            assert(isnumeric(rng))
+            
+            fp = sprintf('%s_run_varying_%s%g-%g', strrep(class(application), '.', '_'), par, rng(1), rng(end));            
+            application.fileprefix = fp;
+            ensuredir(fp)
+            diary(fullfile(fp, [fp '.log']))
+            application.varying_ = true;
+            par0 = application.(par);
+            for r = rng
+                fprintf('\n%s -> %g\n', par, r)
+                application.(par) = r;
+                tic
+                mlnest.NestedSamplingMain(application);
+                toc
+            end
+            application.(par) = par0;
+            saveFigures(fp, 'closeFigure', false)
+            diary('off')
         end
     end
     
