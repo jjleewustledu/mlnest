@@ -6,6 +6,10 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  	%  last modified $LastChangedDate$ and placed into repository /Users/jjlee/MATLAB-Drive/mlnest/src/+mlnest.
  	%% It was developed on Matlab 9.7.0.1261785 (R2019b) Update 3 for MACI64.  Copyright 2020 John Joowon Lee.
  	
+    properties (Constant)
+        fixed_t0 = 10;
+    end
+    
 	properties
         ignoredObjFields = {'logL' 'logWt'}
         MAX = 2000           % # of nested sampling loops, similar to temperature for s.a.
@@ -110,6 +114,31 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
                 k = k/sumk;
             end
         end
+        function k = estimatorGenGammaPF(this, Obj)
+            %% with fixations
+            
+            a = Obj.a;
+            b = Obj.b;
+            p = Obj.p;
+            t0 = this.fixed_t0;
+            t = this.timeInterpolants;
+            
+            if (t(1) >= t0) % saves extra flops from slide()
+                t_   = t - t0;
+                k = t_.^a .* exp(-(b*t_).^p);
+                k = abs(k);
+            else
+                t_   = t - t(1);
+                k = t_.^a .* exp(-(b*t_).^p);
+                k = mlnest.GammaDistributions.slide(abs(k), t, t0 - t(1));
+            end
+            
+            k = k .* (1 + Obj.w*this.timeInterpolants);            
+            sumk = sum(k);
+            if sumk > eps
+                k = k/sumk;
+            end
+        end
 		  
  		function this = GammaDistributions(varargin)
  			%% GAMMADISTRIBUTIONS
@@ -161,6 +190,8 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGamma(obj_);
                 case 'GeneralizedGammaDistributionP'
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGammaP(obj_);
+                case 'GeneralizedGammaDistributionPF'
+                    this.estimatorGamma_ = @(obj_) this.estimatorGenGammaPF(obj_);
                 otherwise
                     error('mlnest:NotImplementedError', 'GammaDistributions.ctor.modelName_->%s', this.modelName_)                
             end
