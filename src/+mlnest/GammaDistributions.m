@@ -8,14 +8,14 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  	
 	properties
         ignoredObjFields = {'logL' 'logWt'}
-        MAX = 500          % # of nested sampling loops, similar to temperature for s.a.
-        MCMC_Counter = 50  % MCMC counter (pre-judged # steps)
-        n = 25             % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
-        STEP_Initial = 0.2 % Initial guess suitable step-size in (0,1)
+        MAX = 2000           % # of nested sampling loops, similar to temperature for s.a.
+        MCMC_Counter = 100   % counter for explorting single particle (pre-judged # steps); improves precision
+        n = 64               % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
+        STEP_Initial = 0.001 % Initial guess suitable step-size in (0,1); 0.01*MCMC_Counter^{-1} < STEP < 10*MCMC_Counter^{-1} improve precision
         
-        map % containers.Map containing model params as structs with fields:  min, max ,init
-        Measurement % tracer concentration of single voxel over time, using dimensionless, scaled parameters
-        timeInterpolants
+        map                  % containers.Map containing model params as structs with fields:  min, max ,init
+        Measurement          % external data
+        timeInterpolants     % numeric times for Measurement
  	end
 
 	methods 
@@ -128,11 +128,11 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             addParameter(ip, 'measurement', [], @isnumeric)
             addParameter(ip, 'timeInterpolants', [], @isnumeric)
             addParameter(ip, 'paramMap', containers.Map, @(x) isa(x, 'containers.Map'))
-            addParameter(ip, 'MAX', [], @isnumeric)
-            addParameter(ip, 'MCMC_Counter', [], @isnumeric)
-            addParameter(ip, 'n', [], @isnumeric)
-            addParameter(ip, 'STEP_Initial', [], @isnumeric)
-            addParameter(ip, 'sigma0', [], @isnumeric)
+            addParameter(ip, 'MAX', 2000, @isnumeric)
+            addParameter(ip, 'MCMC_Counter', 100, @isnumeric)
+            addParameter(ip, 'n', 64, @isnumeric)
+            addParameter(ip, 'STEP_Initial', 0.001, @isnumeric)
+            addParameter(ip, 'sigma0', 0.001, @isnumeric)
             addParameter(ip, 'modelName', 'GeneralizedGammaDistributionP', @ischar)
             parse(ip, varargin{:})
             ipr = ip.Results;
@@ -149,13 +149,13 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             
             switch this.modelName_
                 case 'GammaDistribution'
-                    this.ignored = [this.ignored {'p' 'w'}];
+                    this.ignoredObjFields = [this.ignoredObjFields {'p' 'w'}];
                     this.estimatorGamma_ = @(obj_) this.estimatorGamma(obj_);
                 case 'GammaDistributionP'
-                    this.ignored = [this.ignored 'p'];
+                    this.ignoredObjFields = [this.ignoredObjFields 'p'];
                     this.estimatorGamma_ = @(obj_) this.estimatorGammaP(obj_);
                 case 'GeneralizedGammaDistribution'
-                    this.ignored = [this.ignored 'w'];
+                    this.ignoredObjFields = [this.ignoredObjFields 'w'];
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGamma(obj_);
                 case 'GeneralizedGammaDistributionP'
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGammaP(obj_);

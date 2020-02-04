@@ -28,18 +28,31 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
             plot(this.testObj_.Measurement)
         end
         function test_run(this)
-            this.testObj_.run(this.testObj_)
+            diary(sprintf('Test_GammaDistributions_test_runs_DT%s.log', datestr(now, 'yyyymmddHHMMSS')))
+            for val = { 64 100 128 200 256 }
+                tic
+                this.testObj.n = val{1};
+                this.testObj.run(this.testObj);
+                toc
+            end
+            diary('off')
             
-            % # iterates = 3000
-            % Evidence:  ln(Z) = -70.164236 +/- 0.523950
-            % Information:  H = 27.452321 nats = 39.605328 bits
-            % 	a = 0.218827 +/- 0.000067
-            % 	b = 5.645965 +/- 0.000131
-            % 	p = 0.329690 +/- 0.000002
-            % 	t0 = 10.000007 +/- 0.001019
-            % 	w = -0.000020 +/- 0.000000
-            % logL(k = 3000) = -42.709194
-            % logWt(k = 3000) = -77.309360            
+            % # iterates ~ MAX = 2000
+            % # sampling particles ~ n = 64.000000
+            % MCMC_Counter = 100.000000
+            % STEP_Initial = 0.001000
+            % Stopping criteria = 1.001309
+            % Evidence:  ln(Z) = -57.499643 +/- 0.698314
+            % Information:  H = 31.209155 nats = 45.025293 bits
+            % Model:
+            % 	a = 0.220024 +/- 0.230315
+            % 	b = 5.850639 +/- 0.000000
+            % 	p = 0.328424 +/- 0.318277
+            % 	t0 = 9.969115 +/- 0.000000
+            % 	sigma0 = 0.001000
+            % 	sampled logL(k = 2000) = -26.668973
+            % 	sampled logWt(k = 2000) = -62.070033
+            % Elapsed time is 204.100877 seconds.
         end
         
         function test_Obj2uniform2native(this)
@@ -77,7 +90,7 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
             disp(fields(o))
             
             v = this.testObj.Obj2vec(o);
-            this.verifyEqual(v, [-10 -1 10 20 2 -20 -1])
+            this.verifyEqual(v, [10 20 2 -20 -1])
         end
 	end
 
@@ -89,18 +102,15 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
             this.map('b')        = struct('min',   1,    'max',  10,    'init', 5);
             this.map('p')        = struct('min',   0.2,  'max',   2,    'init', 1/3);
             this.map('t0')       = struct('min',   0,    'max',  20,    'init', 10);
-            this.map('w')        = struct('min',  -1e-3, 'max',   1e-3, 'init', 0);
  			this.testObj_ = GammaDistributions( ...
                 'paramMap', this.map, ...
                 'timeInterpolants', 0:1:99, ...
-                'sigma0', 0.001, ...
-                'modelName', 'GeneralizedGammaDistributionP');
+                'modelName', 'GeneralizedGammaDistribution');
             Obj.a = 0.2;
             Obj.b = 5;
             Obj.p = 1/3;
             Obj.t0 = 10;
-            Obj.w = 0;
-            this.testObj_.Measurement = this.testObj_.estimatorGenGammaP(Obj);
+            this.testObj_.Measurement = this.testObj_.estimatorGenGamma(Obj);
  		end
 	end
 
