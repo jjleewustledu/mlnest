@@ -180,6 +180,10 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
         
         %% UTILITY
         
+        function t   = figTitle(this, client)
+            assert(ischar(client))
+            t = [client ': ' strrep(this.fileprefix, '_', ' ')];
+        end
         function flds = ignoreFields(this, flds)
             for ig = this.ignoredObjFields
                 flds = flds(~strcmp(flds, ig{1}));
@@ -217,12 +221,47 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
                 vec(idx) = obj.(flds{idx});
             end
         end
-        function h = plotResults(this)
+        function h   = plotMap(this)
+            m = this.map;
+            for k = m.keys
+                objs(1).(k{1}) = m(k{1}).min;
+                objs(2).(k{1}) = m(k{1}).max;
+                objs(3).(k{1}) = m(k{1}).init;
+            end
+            for j = 1:3
+                objs(j) = this.Obj2uniform(objs(j));
+            end
+            h = this.plotObjs(objs);
+        end
+        function h   = plotMatrix(this)
+            if isfield(this.results, 'chains')
+                figure
+                h = plotmatrix(this.results.chains);
+                flds = this.results.flds;
+                title({ this.figTitle('plotMatrix()') cell2str(flds) })
+            end
+        end
+        function h   = plotObjs(this, objs)
+            figure;
+            hold on
+            h = plot(1:length(this.Measurement), this.Measurement, 'o');
+            
+            lbls = cell(1, length(objs));
+            for i = 1:length(objs)
+                lbls{i} = struct2str(this.Obj2native(objs(i)));
+                est = this.Estimation(objs(i));
+                plot(1:length(est), est, '-');
+            end           
+            title(this.figTitle('plotObjs()'))
+            legend(['measurement' lbls])
+            hold off
+        end
+        function h   = plotResults(this)
             figure;
             est = this.Estimation(this.results.Obj1);
             h = plot(1:length(this.Measurement), this.Measurement, 'o', ...
-                     1:length(est), est, '-+');
-            title([class(this) '.plotResults()'])
+                     1:length(est), est, '-');
+            title(this.figTitle('plotResults()'))
             legend('measurement', 'estimation')
         end
     end

@@ -27,6 +27,9 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
             figure
             plot(this.testObj_.Measurement)
         end
+        function test_plotMap(this)
+            this.testObj.plotMap()
+        end
         function test_run(this)
             diary(sprintf('Test_GammaDistributions_test_runs_DT%s.log', datestr(now, 'yyyymmddHHMMSS')))
             for val = { 64 100 128 200 256 }
