@@ -102,11 +102,16 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             init_ = this.vec2uniform(mapStruct.init, this.limits(key));
             min_  = this.vec2uniform(mapStruct.min,  this.limits(key));
             max_  = this.vec2uniform(mapStruct.max,  this.limits(key));
+            if init_ < min_ || max_ > init_
+                init_ = 0.5*(min_ + max_);
+            end
             std_  = 0.25*abs(max_ - min_);
             val   = init_ + randn()*std_;
             while val < min_ || max_ < val % from Josh and Larry
                 val = init_ + randn()*std_;
             end
+            assert(~isnan(val))
+            assert(isfinite(val))
             
             % surprisingly inferior:
             % val = val - floor(val);
