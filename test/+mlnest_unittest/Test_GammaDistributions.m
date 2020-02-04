@@ -53,6 +53,11 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
             % 	sampled logL(k = 2000) = -26.668973
             % 	sampled logWt(k = 2000) = -62.070033
             % Elapsed time is 204.100877 seconds.
+        function test_run_varying(this)
+            this.testObj.run_varying(this.testObj, 'MAX', [500 1000 2000 4000 8000])
+            this.testObj.run_varying(this.testObj, 'n', [10 20 40 80 160])
+            this.testObj.run_varying(this.testObj, 'MCMC_Counter', [10 20 40 80 160])
+            this.testObj.run_varying(this.testObj, 'STEP_Initial', [.1 .05 .01 .005 .001])
         end
         
         function test_Obj2uniform2native(this)
