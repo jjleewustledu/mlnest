@@ -9,9 +9,9 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
 	properties
         ignoredObjFields = {'logL' 'logWt'}
         MAX = 2000           % # of nested sampling loops, similar to temperature for s.a.
-        MCMC_Counter = 100   % counter for explorting single particle (pre-judged # steps); improves precision
-        n = 64               % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
-        STEP_Initial = 0.001 % Initial guess suitable step-size in (0,1); 0.01*MCMC_Counter^{-1} < STEP < 10*MCMC_Counter^{-1} improve precision
+        MCMC_Counter = 100   % counter for explorting single particle (pre-judged # steps); nonlinearly affects precision
+        n = 10               % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
+        STEP_Initial = 0.1   % Initial guess suitable step-size in (0,1); 0.01*MCMC_Counter^{-1} < STEP < 10*MCMC_Counter^{-1} improve precision
         
         map                  % containers.Map containing model params as structs with fields:  min, max ,init
         Measurement          % external data
@@ -123,15 +123,17 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             %  @param sigma0
             %  @param modelName
             
+            this = this@mlnest.AbstractApply(varargin{:});
+            
             ip = inputParser;            
             ip.KeepUnmatched = true;
             addParameter(ip, 'measurement', [], @isnumeric)
             addParameter(ip, 'timeInterpolants', [], @isnumeric)
             addParameter(ip, 'paramMap', containers.Map, @(x) isa(x, 'containers.Map'))
-            addParameter(ip, 'MAX', 2000, @isnumeric)
-            addParameter(ip, 'MCMC_Counter', 100, @isnumeric)
-            addParameter(ip, 'n', 64, @isnumeric)
-            addParameter(ip, 'STEP_Initial', 0.001, @isnumeric)
+            addParameter(ip, 'MAX', this.MAX, @isnumeric)
+            addParameter(ip, 'MCMC_Counter', this.MCMC_Counter, @isnumeric)
+            addParameter(ip, 'n', this.n, @isnumeric)
+            addParameter(ip, 'STEP_Initial', this.STEP_Initial, @isnumeric)
             addParameter(ip, 'sigma0', 0.001, @isnumeric)
             addParameter(ip, 'modelName', 'GeneralizedGammaDistributionP', @ischar)
             parse(ip, varargin{:})

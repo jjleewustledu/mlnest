@@ -19,7 +19,10 @@ classdef Test_Linear < matlab.unittest.TestCase
  	end 
 
 	methods (Test) 
- 		function test_run(this) 
+        function test_run(this)
+            this.testObj.run(this.testObj)
+        end
+ 		function test_run_iterations(this) 
             for iter = 1:this.iterations
                 this.testObj.run(this.testObj)
             end
@@ -37,9 +40,14 @@ classdef Test_Linear < matlab.unittest.TestCase
             % 	sigma0 = 0.001000
             % 	sampled logL(k = 500) = -8.998522
             % 	sampled logWt(k = 500) = -32.197331
-            % 11.1031 seconds testing time.
-    
- 		end 
+            % 11.1031 seconds testing time.    
+        end 
+        function test_run_varying(this)
+            this.testObj.run_varying(this.testObj, 'MAX', [200 400 800 1600])
+            this.testObj.run_varying(this.testObj, 'n', [20 40 80 160])
+            this.testObj.run_varying(this.testObj, 'MCMC_Counter', [10 20 40 80 160])
+            this.testObj.run_varying(this.testObj, 'STEP_Initial', [.1 .05 .01 .005 .001])
+        end
  		function test_Linear2_run(this) 
  			obj = mlnest.Linear2;
             obj.MAX = 500;
@@ -55,7 +63,7 @@ classdef Test_Linear < matlab.unittest.TestCase
 
  	methods (TestClassSetup) 
  		function setupLinear(this)   
-            rng('default')         
+            %rng('default')         
  			this.testObj = mlnest.Linear;
             this.testObj.MAX = 500;
             this.testObj.n = 25;

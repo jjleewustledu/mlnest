@@ -23,6 +23,7 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         MCMC_Counter % counter for explorting single particle (pre-judged # steps)
         Measurement  % external data
         n            % # of sampling particles \sim (log width of outer prior mass)^{-1}
+        results
         sigma0       % of model estimation
         STEP_Initial % Initial guess suitable step-size in (0,1)
     end
@@ -46,6 +47,9 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         function m = get.n(this)
             m = this.apply.n;
         end
+        function m = get.results(this)
+            m = this.apply.results;
+        end
         function g = get.STEP_Initial(this)
             g = this.apply.STEP_Initial;
         end
@@ -67,7 +71,7 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
             [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
         end    
-        function this = printResults(this, nest, logZ, H, Samples)
+        function        printResults(this, nest, logZ, H, Samples)
             fprintf('-----------------------------------------------------------\n');
             fprintf('# iterates ~ nest = %i <= MAX = %i\n', nest, this.MAX);
             fprintf('# sampling particles ~ n = %f\n', this.n);
@@ -87,6 +91,15 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
             fprintf('\tsigma0 = %f\n', this.sigma0);
             fprintf('\t%s(k = %i) = %f\n', 'sampled logL',  nest, Samples{nest}.logL);
             fprintf('\t%s(k = %i) = %f\n', 'sampled logWt', nest, Samples{nest}.logWt);
+        end
+        function h    = plotMap(this)
+            h = this.apply.plotMap();
+        end
+        function h    = plotMatrix(this)
+            h = this.apply.plotMatrix();
+        end
+        function h    = plotObjs(this, varargin)
+            h = this.apply.plotObjs(varargin{:});
         end
         function h    = plotResults(this)
             h = this.apply.plotResults();
@@ -166,7 +179,7 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
             end
             
             %% finalize with evidence Z, information H, and optional posterior Samples
-            this = this.finalize(nest, logZ, H, Samples);            
+            this.finalize(nest, logZ, H, Samples);            
         end 
     end 
     
@@ -199,17 +212,11 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         function tf = stoppingConditionMet(this, nest, H)
             tf = nest/(H * this.n) > 4;
         end
-        function this = finalize(this, nest, logZ, H, Samples)
-            [results_,this.apply_] = this.apply_.Results(Samples, nest, logZ);
+        function      finalize(this, nest, logZ, H, Samples)
+            this.apply_.Results(Samples, nest, logZ);
             this.printResults(nest, logZ, H, Samples);
             this.plotResults();
-               
-            if isfield(results_, 'chains')
-                figure
-                plotmatrix(results_.chains);
-                flds = results_.flds;
-                title({[class(this.apply) '.results.chains'] cell2str(flds)})
-            end
+            this.plotMatrix();
         end
         function printAcceptsRejects(this, nest, acceptRejectRatio)
             if (1        == nest || ...

@@ -53,9 +53,12 @@ classdef Lighthouse < mlnest.AbstractApply
     end
 
 	properties 
- 		 n   = 100
+        ignoredObjFields
          MAX = 1000
+         MCMC_Counter
          Measurement
+ 		 n = 100
+         STEP_Initial
     end 
     
     methods (Static)
@@ -71,10 +74,10 @@ classdef Lighthouse < mlnest.AbstractApply
         
         function m   = get.map(~)
             m = containers.Map;
-            m('u') = struct('fixed', 0, 'min', 0, 'mean', 0.5, 'max', 1);
-            m('v') = struct('fixed', 0, 'min', 0, 'mean', 0.5, 'max', 1);
-            m('x') = struct('fixed', 0, 'min',-2, 'mean', 0,   'max', 2);
-            m('y') = struct('fixed', 0, 'min', 0, 'mean', 1,   'max', 2);
+            m('u') = struct('min', 0, 'init', 0.5, 'max', 1);
+            m('v') = struct('min', 0, 'init', 0.5, 'max', 1);
+            m('x') = struct('min',-2, 'init', 0,   'max', 2);
+            m('y') = struct('min', 0, 'init', 1,   'max', 2);
         end
         
         %%

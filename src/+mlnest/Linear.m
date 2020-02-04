@@ -31,7 +31,9 @@ classdef Linear < mlnest.AbstractApply
             est = Obj.slope*this.timeInterpolants + Obj.intercept;
         end
         
-        function this = Linear
+        function this = Linear(varargin)
+            this = this@mlnest.AbstractApply(varargin{:});
+            
             SLOPE = 2;
             INTERCEPT = -20;
             this.Measurement = SLOPE*(0:119) + INTERCEPT;

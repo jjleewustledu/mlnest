@@ -14,13 +14,20 @@ classdef IApply < handle
 	properties (Abstract)
         ignoredObjFields
         MAX          % # of nested sampling loops, similar to temperature for s.a.
-        MCMC_Counter % counter for explorting single particle (pre-judged # steps); improves precision
+                     % ~O(Ntime)
+        MCMC_Counter % counter for explorting single particle (pre-judged # steps); 
+                     % nonlinearly affects precision;
+                     % ~O(Ntime)
         Measurement  % external data
         Object       % struct for sampling particles
-        n            % # of sampling particles \sim (log width of outer prior mass)^{-1}; reduces sampling space
+        n            % # of sampling particles \sim (log width of outer prior mass)^{-1}; 
+                     % values >\approx 100 can significantly reduce sampling space & broaden histograms;
+                     % ~O(1)
         results
         sigma0       % of model estimation used by logLhood()
-        STEP_Initial % Initial guess suitable step-size in (0,1); 0.01*MCMC_Counter^{-1} < STEP < 10*MCMC_Counter^{-1} improve precision
+        STEP_Initial % Initial guess suitable step-size in (0,1); 
+                     % 0.01*MCMC_Counter^{-1} < STEP < 10*MCMC_Counter^{-1} improve precision;
+                     % ~O(1)
  	end 
 
 	methods (Abstract)
