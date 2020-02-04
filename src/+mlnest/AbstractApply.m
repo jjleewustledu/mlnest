@@ -11,10 +11,11 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
  	%  $Id$     
     
     properties (Constant)
-        logSqrt2pi   = 0.9189385332046727;
+        logSqrt2pi = 0.9189385332046727;
     end
     
     properties
+        fileprefix
         Object
         sigma0
     end
@@ -27,8 +28,7 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
         function main = run(application)
             assert(isa(application, 'mlnest.IApply'))
             main = mlnest.NestedSamplingMain(application);
-%            save(sprintf('%s_run_%s.mat', ...
-%                strrep(class(application), '.', '_'), datestr(now, 'yyyymmddHHMMSS')));
+        end
         end
     end
     
