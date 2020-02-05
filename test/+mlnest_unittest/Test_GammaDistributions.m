@@ -31,31 +31,27 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
             this.testObj.plotMap()
         end
         function test_run(this)
-            diary(sprintf('Test_GammaDistributions_test_runs_DT%s.log', datestr(now, 'yyyymmddHHMMSS')))
-            for val = { 64 100 128 200 256 }
-                tic
-                this.testObj.n = val{1};
-                this.testObj.run(this.testObj);
-                toc
-            end
-            diary('off')
+            this.testObj.run(this.testObj);
             
-            % # iterates ~ MAX = 2000
+            % # iterates ~ nest = 2000 <= MAX = 2000
             % # sampling particles ~ n = 64.000000
             % MCMC_Counter = 100.000000
             % STEP_Initial = 0.001000
-            % Stopping criteria = 1.001309
-            % Evidence:  ln(Z) = -57.499643 +/- 0.698314
-            % Information:  H = 31.209155 nats = 45.025293 bits
+            % Stopping criteria = 0.996216
+            % Evidence:  ln(Z) = -40.599003 +/- 0.700097
+            % Information:  H = 31.368709 nats = 45.255481 bits
             % Model:
-            % 	a = 0.220024 +/- 0.230315
-            % 	b = 5.850639 +/- 0.000000
-            % 	p = 0.328424 +/- 0.318277
-            % 	t0 = 9.969115 +/- 0.000000
+            % 	a = 0.192677 +/- 0.252474
+            % 	b = 4.733766 +/- 0.000000
+            % 	p = 0.335108 +/- 0.312800
+            % 	t0 = 9.995126 +/- 0.000000
             % 	sigma0 = 0.001000
-            % 	sampled logL(k = 2000) = -26.668973
-            % 	sampled logWt(k = 2000) = -62.070033
-            % Elapsed time is 204.100877 seconds.
+            % 	sampled logL(k = 2000) = -8.067035
+            % 	sampled logWt(k = 2000) = -43.468095
+            % .
+            % Done mlnest_unittest.Test_GammaDistributions
+            % 191.5193 seconds testing time.
+        end
         function test_run_varying(this)
             this.testObj.run_varying(this.testObj, 'MAX', [500 1000 2000 4000 8000])
             this.testObj.run_varying(this.testObj, 'n', [10 20 40 80 160])
@@ -114,11 +110,11 @@ classdef Test_GammaDistributions < matlab.unittest.TestCase
                 'paramMap', this.map, ...
                 'timeInterpolants', 0:1:99, ...
                 'modelName', 'GeneralizedGammaDistribution');
-            Obj.a = 0.2;
-            Obj.b = 5;
-            Obj.p = 1/3;
-            Obj.t0 = 10;
-            this.testObj_.Measurement = this.testObj_.estimatorGenGamma(Obj);
+            Obn.a = 0.2;
+            Obn.b = 5;
+            Obn.p = 1/3;
+            Obn.t0 = 10;
+            this.testObj_.Measurement = this.testObj_.estimatorGenGamma(Obn);
  		end
 	end
 
