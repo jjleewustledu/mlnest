@@ -153,29 +153,36 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             
             flds = fields(Samples{1});
             flds = this.ignoreFields(flds);
+            chains = zeros(nest, length(flds));
             Obj1 = structfun(@(x) 0, Samples{1}, 'UniformOutput', false); 
             Obj2 = Obj1;
-            chains = zeros(nest, length(flds));
+            moment1 = zeros(1, length(flds));
+            moment2 = zeros(1, length(flds));
             
             for ni = 1:nest
                 
-                w  = exp(Samples{ni}.logWt - logZ); % proportional weight
+                w = exp(Samples{ni}.logWt - logZ); % proportional weight
                 
                 for f = 1:length(flds)                    
                     chains(ni, f) = Samples{ni}.(flds{f});                                          
-                    Obj1.(flds{f}) = Obj1.(flds{f}) + w*Samples{ni}.(flds{f});
+                    
+                    Obj1.(flds{f}) = Obj1.(flds{f}) + w* Samples{ni}.(flds{f});
                     Obj2.(flds{f}) = Obj2.(flds{f}) + w*(Samples{ni}.(flds{f}))^2;
+                    
+                    Obn = this.Obj2native(Samples{ni});
+                    moment1(f) = moment1(f) + w* Obn.(flds{f});
+                    moment2(f) = moment2(f) + w*(Obn.(flds{f}))^2;
                 end
             end
             
             %% gather
             
-            r.flds = flds;            
+            r.flds = flds;  
+            r.chains = chains;          
             r.Obj1 = Obj1;
             r.Obj2 = Obj2;
-            r.chains = chains;
-            r.moment1 = this.Obj2vec(this.Obj2native(Obj1));
-            r.moment2 = this.Obj2vec(this.Obj2native(Obj2));
+            r.moment1 = moment1;
+            r.moment2 = moment2;
             this.results_ = r;
         end
         

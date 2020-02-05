@@ -70,8 +70,15 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         end
         function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
             [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
-        end    
+        end   
+        
+        %% UTILITIES
+        
+        function        fprintfModel(this)
+            this.apply.fprintfModel();
+        end        
         function        printResults(this, nest, logZ, H, Samples)
+            this.apply.Results(Samples, nest, logZ);
             fprintf('-----------------------------------------------------------\n');
             fprintf('# iterates ~ nest = %i <= MAX = %i\n', nest, this.MAX);
             fprintf('# sampling particles ~ n = %f\n', this.n);
@@ -80,17 +87,10 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
             fprintf('Stopping criteria = %f\n', nest/(H * this.n))
             fprintf('Evidence:  ln(Z) = %f +/- %f\n', logZ, sqrt(H/this.n));
             fprintf('Information:  H = %f nats = %f bits\n', H, H/log(2));
-            fprintf('Model:\n')
-            results_ = this.apply.Results(Samples, nest, logZ);
-            for f = 1:length(results_.flds)
-                fprintf('\t%s = %f +/- %f\n', ...
-                    results_.flds{f}, ...
-                    results_.moment1(f), ...
-                    sqrt(results_.moment2(f) - results_.moment1(f)^2));
-            end
-            fprintf('\tsigma0 = %f\n', this.sigma0);
-            fprintf('\t%s(k = %i) = %f\n', 'sampled logL',  nest, Samples{nest}.logL);
+            this.fprintfModel()
+            fprintf('\t%s(k = %i) = %f\n', 'sampled logL ', nest, Samples{nest}.logL);
             fprintf('\t%s(k = %i) = %f\n', 'sampled logWt', nest, Samples{nest}.logWt);
+            fprintf('\n')
         end
         function h    = plotMap(this)
             h = this.apply.plotMap();
@@ -104,6 +104,11 @@ classdef NestedSamplingMain < handle & matlab.mixin.Copyable
         function h    = plotResults(this)
             h = this.apply.plotResults();
         end
+        function s =    sprintfModel(this)
+            s = this.apply.sprintfModel();
+        end
+        
+        %%
         
   		function this = NestedSamplingMain(app) 
  			%% NESTEDSAMPLINGMAIN 
