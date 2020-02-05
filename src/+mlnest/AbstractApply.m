@@ -179,21 +179,30 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             this.results_ = r;
         end
         
-        %% UTILITY
+        %% UTILITIES
         
-        function t   = figTitle(this, client)
-            assert(ischar(client))
-            t = [client ': ' strrep(this.fileprefix, '_', ' ')];
+        function        fprintfModel(this)
+            fprintf('Model:\n');
+            for f = 1:length(this.results.flds)
+                fprintf('\t%s = %f +/- %f\n', ...
+                    this.results.flds{f}, ...
+                    this.results.moment1(f), ...
+                    sqrt(this.results.moment2(f) - this.results.moment1(f)^2));
+            end
+            fprintf('\tsigma0 = %f\n', this.sigma0);
+            for f = asrow(this.results.flds)
+                fprintf('\tmap(''%s'') => %s\n', f{1}, struct2str(this.map(f{1})));
+            end
         end
         function flds = ignoreFields(this, flds)
             for ig = this.ignoredObjFields
                 flds = flds(~strcmp(flds, ig{1}));
             end
         end
-        function vec = limits(this, key)
+        function vec  = limits(this, key)
             vec = [this.map(key).min this.map(key).max];
         end
-        function o   = Obj2native(this, o)
+        function o    = Obj2native(this, o)
             %% rescale to native units
             
             flds = fields(o);
@@ -202,7 +211,7 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
                 o.(f{1}) = this.vec2native(o.(f{1}), this.limits(f{1}));
             end
         end
-        function o   = Obj2uniform(this, o)
+        function o    = Obj2uniform(this, o)
             %% rescale to (0,1)
             
             flds = fields(o);
@@ -211,7 +220,7 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
                 o.(f{1}) = this.vec2uniform(o.(f{1}), this.limits(f{1}));
             end
         end
-        function vec = Obj2vec(this, obj)
+        function vec  = Obj2vec(this, obj)
             flds = fields(obj);
             flds = this.ignoreFields(flds);
             vec = zeros(1, length(flds));
@@ -219,27 +228,27 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
                 vec(idx) = obj.(flds{idx});
             end
         end
-        function h   = plotMap(this)
+        function h    = plotMap(this)
             m = this.map;
             for k = m.keys
                 objs(1).(k{1}) = m(k{1}).min;
-                objs(2).(k{1}) = m(k{1}).max;
-                objs(3).(k{1}) = m(k{1}).init;
+                objs(2).(k{1}) = m(k{1}).init;
+                objs(3).(k{1}) = m(k{1}).max;
             end
             for j = 1:3
                 objs(j) = this.Obj2uniform(objs(j));
             end
             h = this.plotObjs(objs);
         end
-        function h   = plotMatrix(this)
+        function h    = plotMatrix(this)
             if isfield(this.results, 'chains')
                 figure
                 h = plotmatrix(this.results.chains);
                 flds = this.results.flds;
-                title({ this.figTitle('plotMatrix()') cell2str(flds) })
+                title({ this.titlePlot('plotMatrix()') cell2str(flds) })
             end
         end
-        function h   = plotObjs(this, objs)
+        function h    = plotObjs(this, objs)
             figure;
             hold on
             h = plot(1:length(this.Measurement), this.Measurement, 'o');
@@ -250,23 +259,41 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
                 est = this.Estimation(objs(i));
                 plot(1:length(est), est, '-');
             end           
-            title(this.figTitle('plotObjs()'))
+            title(this.titlePlot('plotObjs()'))
             legend(['measurement' lbls])
             hold off
         end
-        function h   = plotResults(this)
+        function h    = plotResults(this)
             figure;
             est = this.Estimation(this.results.Obj1);
             h = plot(1:length(this.Measurement), this.Measurement, 'o', ...
                      1:length(est), est, '-');
-            title(this.figTitle('plotResults()'))
+            title(this.titlePlot('plotResults()'))
             legend('measurement', 'estimation')
+            annotation('textbox', [.175 .25 .3 .3], 'String', this.sprintfModel(), 'FitBoxToText', 'on')
         end
-        function       save(this)
+        function        save(this)
             save([this.fileprefix '.mat'], this);
         end
-        function       saveas(this, fn)
+        function        saveas(this, fn)
             save(fn, this);
+        end
+        function s    = sprintfModel(this)
+            s = sprintf('Model:\n');
+            for f = 1:length(this.results.flds)
+                s = [s sprintf('\t%s = %f +/- %f\n', ...
+                          this.results.flds{f}, ...
+                          this.results.moment1(f), ...
+                          sqrt(this.results.moment2(f) - this.results.moment1(f)^2))]; %#ok<AGROW>
+            end
+            s = [s sprintf('\tsigma0 = %f\n', this.sigma0)];
+            for f = asrow(this.results.flds)
+                s = [s sprintf('\tmap(''%s'') => %s\n', f{1}, struct2str(this.map(f{1})))];
+            end
+        end
+        function t    = titlePlot(this, client)
+            assert(ischar(client))
+            t = [client ': ' strrep(this.fileprefix, '_', ' ')];
         end
         
         %%
