@@ -169,6 +169,7 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
                     Obj1.(flds{f}) = Obj1.(flds{f}) + w* Samples{ni}.(flds{f});
                     Obj2.(flds{f}) = Obj2.(flds{f}) + w*(Samples{ni}.(flds{f}))^2;
                     
+                    % mean +/- std reports need:
                     Obn = this.Obj2native(Samples{ni});
                     moment1(f) = moment1(f) + w* Obn.(flds{f});
                     moment2(f) = moment2(f) + w*(Obn.(flds{f}))^2;
