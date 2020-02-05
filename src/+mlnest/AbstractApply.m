@@ -83,9 +83,9 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
                 end
                 Try.logL = this.logLhood(Try); % trial likelihood value
                 
-                %% Accept if trial likelihood > previous likelihood * UNIFORM(0,1); evaluate logs.
+                %% Accept if and only if within hard likelihood constraint
                 %  Cf. Sivia sec. 9.4.4.
-                if (Try.logL > logLstar + log(rand()))
+                if Try.logL > logLstar % + log(rand())
                     Obj = Try;
                     accept = accept + 1;  
                 else
@@ -122,6 +122,7 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             init_ = this.vec2uniform(mapStruct.init, this.limits(key));
             min_  = this.vec2uniform(mapStruct.min,  this.limits(key));
             max_  = this.vec2uniform(mapStruct.max,  this.limits(key));
+            assert(max_ > min_)
             if init_ < min_ || max_ > init_
                 init_ = 0.5*(min_ + max_);
             end
@@ -192,25 +193,22 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
         function vec = limits(this, key)
             vec = [this.map(key).min this.map(key).max];
         end
-        function o = Obj2native(this, o)
+        function o   = Obj2native(this, o)
             %% rescale to native units
             
             flds = fields(o);
             flds = this.ignoreFields(flds);
             for f = flds'             
-                lims = this.limits(f{1});
-                o.(f{1}) = lims(2)*o.(f{1}) + lims(1)*(1 - o.(f{1}));
+                o.(f{1}) = this.vec2native(o.(f{1}), this.limits(f{1}));
             end
         end
-        function o = Obj2uniform(this, o)
+        function o   = Obj2uniform(this, o)
             %% rescale to (0,1)
             
             flds = fields(o);
             flds = this.ignoreFields(flds);
             for f = flds'
-                lims = this.limits(f{1});
-                u = (o.(f{1}) - lims(1))/(lims(2) - lims(1));
-                o.(f{1}) = u;
+                o.(f{1}) = this.vec2uniform(o.(f{1}), this.limits(f{1}));
             end
         end
         function vec = Obj2vec(this, obj)
@@ -264,12 +262,26 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             title(this.figTitle('plotResults()'))
             legend('measurement', 'estimation')
         end
+        function       save(this)
+            save([this.fileprefix '.mat'], this);
+        end
+        function       saveas(this, fn)
+            save(fn, this);
+        end
+        
+        %%
+        
+        function this = AbstractApply(varargin)
+            this.fileprefix = ...
+                sprintf('%s_ctor_%s', strrep(class(this), '.', '_'), datestr(now, 'yyyymmddHHMMSS'));
+        end
     end
     
     %% PROTECTED
     
     properties (Access = protected)
         results_
+        varying_ = false
     end
     
     methods (Static, Access = protected)
