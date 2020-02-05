@@ -7,7 +7,8 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  	%% It was developed on Matlab 9.7.0.1261785 (R2019b) Update 3 for MACI64.  Copyright 2020 John Joowon Lee.
  	
     properties (Constant)
-        fixed_t0 = 10;
+        fixed_t0 = 10
+        fixed_w  = 1.2
     end
     
 	properties
@@ -97,6 +98,7 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             p = Obj.p;
             t0 = Obj.t0;
             t = this.timeInterpolants;
+            w = Obj.w;
             
             if (t(1) >= t0) % saves extra flops from slide()
                 t_   = t - t0;
@@ -108,7 +110,7 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
                 k = mlnest.GammaDistributions.slide(abs(k), t, t0 - t(1));
             end
             
-            k = k .* (1 + Obj.w*this.timeInterpolants);            
+            k = k .* (1 + w*this.timeInterpolants);            
             sumk = sum(k);
             if sumk > eps
                 k = k/sumk;
@@ -122,6 +124,7 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             p = Obj.p;
             t0 = this.fixed_t0;
             t = this.timeInterpolants;
+            w = this.fixed_w;
             
             if (t(1) >= t0) % saves extra flops from slide()
                 t_   = t - t0;
@@ -133,7 +136,7 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
                 k = mlnest.GammaDistributions.slide(abs(k), t, t0 - t(1));
             end
             
-            k = k .* (1 + Obj.w*this.timeInterpolants);            
+            k = k .* (1 + w*this.timeInterpolants);            
             sumk = sum(k);
             if sumk > eps
                 k = k/sumk;
@@ -191,6 +194,7 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
                 case 'GeneralizedGammaDistributionP'
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGammaP(obj_);
                 case 'GeneralizedGammaDistributionPF'
+                    this.ignoredObjFields = [this.ignoredObjFields 'w' 't0'];
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGammaPF(obj_);
                 otherwise
                     error('mlnest:NotImplementedError', 'GammaDistributions.ctor.modelName_->%s', this.modelName_)                
