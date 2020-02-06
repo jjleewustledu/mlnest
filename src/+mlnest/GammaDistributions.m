@@ -6,12 +6,9 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  	%  last modified $LastChangedDate$ and placed into repository /Users/jjlee/MATLAB-Drive/mlnest/src/+mlnest.
  	%% It was developed on Matlab 9.7.0.1261785 (R2019b) Update 3 for MACI64.  Copyright 2020 John Joowon Lee.
  	
-    properties (Constant)
-        fixed_t0 = 10
-        fixed_w  = 1.2
-    end
-    
-	properties
+    properties
+        fixed_w = 1.2
+        
         ignoredObjFields = {'logL' 'logWt'}
         MAX = 2000           % # of nested sampling loops, similar to temperature for s.a.
         MCMC_Counter = 100   % counter for explorting single particle (pre-judged # steps); nonlinearly affects precision

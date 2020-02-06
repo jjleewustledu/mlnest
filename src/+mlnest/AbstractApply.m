@@ -17,7 +17,7 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
     properties
         fileprefix
         Object
-        sigma0
+        sigma0 % fraction of Measurement < 1
     end
     
     properties (Dependent)
@@ -49,6 +49,13 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             application.(par) = par0;
             saveFigures(fp, 'closeFigure', false)
             diary('off')
+        end        
+        
+        function y    = vec2native(u, lims)
+            y = lims(2)*u + lims(1)*(1 - u);
+        end
+        function u    = vec2uniform(y, lims)
+            u = (y - lims(1))/(lims(2) - lims(1));
         end
     end
     
@@ -309,6 +316,12 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
         function this = AbstractApply(varargin)
             this.fileprefix = ...
                 sprintf('%s_ctor_%s', strrep(class(this), '.', '_'), datestr(now, 'yyyymmddHHMMSS'));
+            
+            ip = inputParser;            
+            ip.KeepUnmatched = true;
+            addParameter(ip, 'fileprefix', this.fileprefix, @ischar)
+            parse(ip, varargin{:})
+            this.fileprefix = ip.Results.fileprefix;
         end
     end
     
@@ -335,12 +348,6 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             %% uniform inside (0,1)
            
             u = rand;
-        end
-        function y = vec2native(u, lims)
-            y = lims(2)*u + lims(1)*(1 - u);
-        end
-        function u = vec2uniform(y, lims)
-            u = (y - lims(1))/(lims(2) - lims(1));
         end
     end 
     
