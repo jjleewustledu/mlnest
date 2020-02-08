@@ -7,7 +7,7 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  	%% It was developed on Matlab 9.7.0.1261785 (R2019b) Update 3 for MACI64.  Copyright 2020 John Joowon Lee.
  	
     properties
-        fixed_w = 1.2
+        fixed_p = 0.4592
         
         ignoredObjFields = {'logL' 'logWt'}
         MAX = 2000           % # of nested sampling loops, similar to temperature for s.a.
@@ -118,10 +118,10 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
             
             a = Obj.a;
             b = Obj.b;
-            p = Obj.p;
-            t0 = this.fixed_t0;
+            p = this.fixed_p;
+            t0 = Obj.t0;
             t = this.timeInterpolants;
-            w = this.fixed_w;
+            w = Obj.w;
             
             if (t(1) >= t0) % saves extra flops from slide()
                 t_   = t - t0;
@@ -191,7 +191,6 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
                 case 'GeneralizedGammaDistributionP'
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGammaP(obj_);
                 case 'GeneralizedGammaDistributionPF'
-                    this.ignoredObjFields = [this.ignoredObjFields 'w' 't0'];
                     this.estimatorGamma_ = @(obj_) this.estimatorGenGammaPF(obj_);
                 otherwise
                     error('mlnest:NotImplementedError', 'GammaDistributions.ctor.modelName_->%s', this.modelName_)                

@@ -161,7 +161,9 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             
             flds = fields(Samples{1});
             flds = this.ignoreFields(flds);
+            ws = zeros(nest, 1);
             chains = zeros(nest, length(flds));
+            %wchains = zeros(nest, length(flds));
             Obj1 = structfun(@(x) 0, Samples{1}, 'UniformOutput', false); 
             Obj2 = Obj1;
             moment1 = zeros(1, length(flds));
@@ -170,15 +172,16 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             for ni = 1:nest
                 
                 w = exp(Samples{ni}.logWt - logZ); % proportional weight
+                ws(ni) = w;
                 
                 for f = 1:length(flds)                    
-                    chains(ni, f) = Samples{ni}.(flds{f});                                          
+                    chains(ni, f) = Samples{ni}.(flds{f});
+                    %wchains(ni, f) = w*Samples{ni}.(flds{f});
                     
                     Obj1.(flds{f}) = Obj1.(flds{f}) + w* Samples{ni}.(flds{f});
                     Obj2.(flds{f}) = Obj2.(flds{f}) + w*(Samples{ni}.(flds{f}))^2;
                     
-                    % mean +/- std reports need:
-                    Obn = this.Obj2native(Samples{ni});
+                    Obn = this.Obj2native(Samples{ni}); % needed by mean +/- std reports
                     moment1(f) = moment1(f) + w* Obn.(flds{f});
                     moment2(f) = moment2(f) + w*(Obn.(flds{f}))^2;
                 end
@@ -187,7 +190,9 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             %% gather
             
             r.flds = flds;  
-            r.chains = chains;          
+            r.ws = ws;
+            r.chains = chains;  
+            %r.wchains = wchains;
             r.Obj1 = Obj1;
             r.Obj2 = Obj2;
             r.moment1 = moment1;
