@@ -83,12 +83,12 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
 
                 %% Trial object
                 flds = fields(Try);
-                flds = this.ignoreFields(flds);
+                flds = ignoreFields(this, flds);
                 for f = 1:length(flds)                    
                     Try.(flds{f}) = Obj.(flds{f}) + step*(2*rand() - 1.);  % |move| < step
                     Try.(flds{f}) = Try.(flds{f}) - floor(Try.(flds{f}));  % wraparound to stay within (0,1)
                 end
-                Try.logL = this.logLhood(Try); % trial likelihood value
+                Try.logL = logLhood(this, Try); % trial likelihood value
                 
                 %% Accept if and only if within hard likelihood constraint
                 %  Cf. Sivia sec. 9.4.4.
@@ -106,11 +106,12 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             acceptRejectRatio = accept/reject;
         end
         function logL = logLhood(this, Obj)
-            Estimation = this.Estimation(Obj);
-            positive   = this.Measurement > 0;
-            EoverM     = Estimation(positive)./this.Measurement(positive);
-            Q          = sum((1 - EoverM).^2);
-            logL       = -0.5*Q/this.sigma0^2;
+            estimation  = Estimation(this, Obj);
+            positive    = this.Measurement > 0;
+            measurement = this.Measurement(positive);
+            eoverm      = estimation(positive)./measurement;
+            Q           = sum((1 - eoverm).^2);
+            logL        = -0.5*Q/this.sigma0^2 - sum(log(this.sigma0*measurement));
         end
         function Obj  = Prior(this, ~)
             Obj = struct('logL',  [], 'logWt', []);
@@ -213,31 +214,33 @@ classdef (Abstract) AbstractApply < handle & matlab.mixin.Copyable & mlnest.IApp
             for ig = this.ignoredObjFields
                 flds = flds(~strcmp(flds, ig{1}));
             end
-        end
+        end  % OPTIMIZE?
         function vec  = limits(this, key)
             vec = [this.map(key).min this.map(key).max];
         end
         function o    = Obj2native(this, o)
             %% rescale to native units
             
+            import mlnest.AbstractApply.vec2native
             flds = fields(o);
-            flds = this.ignoreFields(flds);
+            flds = ignoreFields(this, flds);
             for f = flds'             
-                o.(f{1}) = this.vec2native(o.(f{1}), this.limits(f{1}));
+                o.(f{1}) = vec2native(o.(f{1}), limits(this, f{1}));
             end
         end
         function o    = Obj2uniform(this, o)
             %% rescale to (0,1)
             
+            import mlnest.AbstractApply.vec2uniform
             flds = fields(o);
-            flds = this.ignoreFields(flds);
+            flds = ignoreFields(this, flds);
             for f = flds'
-                o.(f{1}) = this.vec2uniform(o.(f{1}), this.limits(f{1}));
+                o.(f{1}) = vec2uniform(o.(f{1}), limits(this, f{1}));
             end
         end
         function vec  = Obj2vec(this, obj)
             flds = fields(obj);
-            flds = this.ignoreFields(flds);
+            flds = ignoreFields(this, flds);
             vec = zeros(1, length(flds));
             for idx = 1:length(vec)
                 vec(idx) = obj.(flds{idx});
