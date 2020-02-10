@@ -7,7 +7,7 @@ classdef GammaDistributions < handle & mlnest.AbstractApply
  	%% It was developed on Matlab 9.7.0.1261785 (R2019b) Update 3 for MACI64.  Copyright 2020 John Joowon Lee.
  	
     properties
-        fixed_p = 0.4592
+        fixed_p = 0.4618
         
         ignoredObjFields = {'logL' 'logWt'}
         MAX = 2000           % # of nested sampling loops, similar to temperature for s.a.
