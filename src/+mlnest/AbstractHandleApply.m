@@ -1,5 +1,5 @@
-classdef (Abstract) AbstractApply < mlnest.IApply 
-	%% ABSTRACTAPPLY implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
+classdef (Abstract) AbstractHandleApply < handle & matlab.mixin.Copyable & mlnest.IHandleApply 
+	%% ABSTRACTHANDLEAPPLY implements application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2  
 
 	%  $Revision$ 
@@ -17,7 +17,7 @@ classdef (Abstract) AbstractApply < mlnest.IApply
     properties
         fileprefix
         Object
-        sigma0 = 0.5 % fraction of Measurement < 1
+        sigma0 % fraction of Measurement < 1
     end
     
     properties (Dependent)
@@ -25,16 +25,11 @@ classdef (Abstract) AbstractApply < mlnest.IApply
     end
     
     methods (Static)
-        function main = run(application, varargin)
-            assert(isa(application, 'mlnest.IApply'))
-            if isempty(varargin)
-                main = mlnest.NestedSamplingMain(application);
-            else
-                main = mlnest.AbstractApply.run_varying(application, varargin{:});
-            end
+        function main = run(application)
+            assert(isa(application, 'mlnest.IHandleApply'))
+            main = mlnest.HandleNestedSamplingMain(application);
         end
-        function main = run_varying(application, par, rng)
-            assert(isa(application, 'mlnest.IApply'))
+        function        run_varying(application, par, rng)
             assert(ischar(par))
             assert(isnumeric(rng))
             
@@ -44,12 +39,11 @@ classdef (Abstract) AbstractApply < mlnest.IApply
             diary(fullfile(fp, [fp '.log']))
             application.varying_ = true;
             par0 = application.(par);
-            main = {};
             for r = rng
                 fprintf('\n%s -> %g\n', par, r)
                 application.(par) = r;
                 tic
-                main = [main {mlnest.NestedSamplingMain(application)}]; %#ok<AGROW>
+                mlnest.NestedSamplingMain(application);
                 toc
             end
             application.(par) = par0;
@@ -75,7 +69,7 @@ classdef (Abstract) AbstractApply < mlnest.IApply
         
         %%
         
-        function this = AbstractApply(varargin)
+        function this = AbstractHandleApply(varargin)
             this.fileprefix = ...
                 sprintf('%s_ctor_%s', strrep(class(this), '.', '_'), datestr(now, 'yyyymmddHHMMSS'));
             
@@ -83,7 +77,6 @@ classdef (Abstract) AbstractApply < mlnest.IApply
             ip.KeepUnmatched = true;
             addParameter(ip, 'fileprefix', this.fileprefix, @ischar)
             parse(ip, varargin{:})
-            
             this.fileprefix = ip.Results.fileprefix;
         end
         
@@ -129,15 +122,15 @@ classdef (Abstract) AbstractApply < mlnest.IApply
             measurement = this.Measurement(positive);
             eoverm      = estimation(positive)./measurement;
             Q           = sum((1 - eoverm).^2);
-            logL        = -0.5*Q/this.sigma0^2; % - sum(log(this.sigma0*measurement));
+            logL        = -0.5*Q/this.sigma0^2 - sum(log(this.sigma0*measurement));
         end
         function Obj  = Prior(this, ~)
             Obj = struct('logL',  [], 'logWt', []);
             keys = this.map.keys;
             for k = 1:length(keys)
-                Obj.(keys{k}) = priorValue(this, this.map(keys{k}), keys{k});
+                Obj.(keys{k}) = this.priorValue(this.map(keys{k}), keys{k});
             end
-            Obj.logL = logLhood(this, Obj);
+            Obj.logL = this.logLhood(Obj);
         end
         function val  = priorValue(this, mapStruct, key)
             if lstrfind(this.ignoredObjFields, key)
@@ -145,10 +138,9 @@ classdef (Abstract) AbstractApply < mlnest.IApply
                 return
             end
             
-            import mlnest.AbstractApply.vec2uniform
-            init_ = vec2uniform(mapStruct.init, limits(this, key));
-            min_  = vec2uniform(mapStruct.min,  limits(this, key));
-            max_  = vec2uniform(mapStruct.max,  limits(this, key));
+            init_ = this.vec2uniform(mapStruct.init, this.limits(key));
+            min_  = this.vec2uniform(mapStruct.min,  this.limits(key));
+            max_  = this.vec2uniform(mapStruct.max,  this.limits(key));
             assert(max_ > min_)
             if init_ < min_ || max_ > init_
                 init_ = 0.5*(min_ + max_);
@@ -182,6 +174,7 @@ classdef (Abstract) AbstractApply < mlnest.IApply
             flds = this.ignoreFields(flds);
             ws = zeros(nest, 1);
             chains = zeros(nest, length(flds));
+            %wchains = zeros(nest, length(flds));
             Obj1 = structfun(@(x) 0, Samples{1}, 'UniformOutput', false); 
             Obj2 = Obj1;
             moment1 = zeros(1, length(flds));
@@ -194,11 +187,12 @@ classdef (Abstract) AbstractApply < mlnest.IApply
                 
                 for f = 1:length(flds)                    
                     chains(ni, f) = Samples{ni}.(flds{f});
+                    %wchains(ni, f) = w*Samples{ni}.(flds{f});
                     
                     Obj1.(flds{f}) = Obj1.(flds{f}) + w* Samples{ni}.(flds{f});
                     Obj2.(flds{f}) = Obj2.(flds{f}) + w*(Samples{ni}.(flds{f}))^2;
                     
-                    Obn = Obj2native(this, Samples{ni}); % needed by mean +/- std reports
+                    Obn = this.Obj2native(Samples{ni}); % needed by mean +/- std reports
                     moment1(f) = moment1(f) + w* Obn.(flds{f});
                     moment2(f) = moment2(f) + w*(Obn.(flds{f}))^2;
                 end
@@ -209,6 +203,7 @@ classdef (Abstract) AbstractApply < mlnest.IApply
             r.flds = flds;  
             r.ws = ws;
             r.chains = chains;  
+            %r.wchains = wchains;
             r.Obj1 = Obj1;
             r.Obj2 = Obj2;
             r.moment1 = moment1;
@@ -220,14 +215,14 @@ classdef (Abstract) AbstractApply < mlnest.IApply
         
         function        fprintfModel(this)
             fprintf('Model:\n');
-            for f = 1:length(this.results_.flds)
+            for f = 1:length(this.results.flds)
                 fprintf('\t%s = %f +/- %f\n', ...
-                    this.results_.flds{f}, ...
-                    this.results_.moment1(f), ...
-                    sqrt(this.results_.moment2(f) - this.results_.moment1(f)^2));
+                    this.results.flds{f}, ...
+                    this.results.moment1(f), ...
+                    sqrt(this.results.moment2(f) - this.results.moment1(f)^2));
             end
             fprintf('\tsigma0 = %f\n', this.sigma0);
-            for f = asrow(this.results_.flds)
+            for f = asrow(this.results.flds)
                 fprintf('\tmap(''%s'') => %s\n', f{1}, struct2str(this.map(f{1})));
             end
         end
@@ -242,7 +237,7 @@ classdef (Abstract) AbstractApply < mlnest.IApply
         function o    = Obj2native(this, o)
             %% rescale to native units
             
-            import mlnest.AbstractApply.vec2native
+            import mlnest.AbstractHandleApply.vec2native
             flds = fields(o);
             flds = ignoreFields(this, flds);
             for f = flds'             
@@ -252,7 +247,7 @@ classdef (Abstract) AbstractApply < mlnest.IApply
         function o    = Obj2uniform(this, o)
             %% rescale to (0,1)
             
-            import mlnest.AbstractApply.vec2uniform
+            import mlnest.AbstractHandleApply.vec2uniform
             flds = fields(o);
             flds = ignoreFields(this, flds);
             for f = flds'
@@ -279,11 +274,11 @@ classdef (Abstract) AbstractApply < mlnest.IApply
             end
             h = this.plotObjs(objs);
         end
-        function h    = plotMatrix(this)         
-            if isfield(this.results_, 'chains')
+        function h    = plotMatrix(this)
+            if isfield(this.results, 'chains')
                 figure
-                h = plotmatrix(this.results_.chains);
-                flds = this.results_.flds;
+                h = plotmatrix(this.results.chains);
+                flds = this.results.flds;
                 title({ this.titlePlot('plotMatrix()') cell2str(flds) })
             end
         end
@@ -294,22 +289,22 @@ classdef (Abstract) AbstractApply < mlnest.IApply
             
             lbls = cell(1, length(objs));
             for i = 1:length(objs)
-                lbls{i} = struct2str(Obj2native(this, objs(i)));
-                est = Estimation(this, objs(i));
+                lbls{i} = struct2str(this.Obj2native(objs(i)));
+                est = this.Estimation(objs(i));
                 plot(1:length(est), est, '-');
             end           
-            title(titlePlot(this, 'plotObjs()'))
+            title(this.titlePlot('plotObjs()'))
             legend(['measurement' lbls])
             hold off
         end
         function h    = plotResults(this)
             figure;
-            est = this.Estimation(this.results_.Obj1);
+            est = this.Estimation(this.results.Obj1);
             h = plot(1:length(this.Measurement), this.Measurement, 'o', ...
                      1:length(est), est, '-');
             title(this.titlePlot('plotResults()'))
             legend('measurement', 'estimation')
-            annotation('textbox', [.175 .25 .3 .3], 'String', sprintfModel(this), 'FitBoxToText', 'on')
+            annotation('textbox', [.175 .25 .3 .3], 'String', this.sprintfModel(), 'FitBoxToText', 'on')
         end
         function        save(this)
             save([this.fileprefix '.mat'], this);
@@ -319,15 +314,15 @@ classdef (Abstract) AbstractApply < mlnest.IApply
         end
         function s    = sprintfModel(this)
             s = sprintf('Model:\n');
-            for f = 1:length(this.results_.flds)
+            for f = 1:length(this.results.flds)
                 s = [s sprintf('\t%s = %f +/- %f\n', ...
-                          this.results_.flds{f}, ...
-                          this.results_.moment1(f), ...
-                          sqrt(this.results_.moment2(f) - this.results_.moment1(f)^2))]; %#ok<AGROW>
+                          this.results.flds{f}, ...
+                          this.results.moment1(f), ...
+                          sqrt(this.results.moment2(f) - this.results.moment1(f)^2))]; %#ok<AGROW>
             end
             s = [s sprintf('\tsigma0 = %f\n', this.sigma0)];
-            for f = asrow(this.results_.flds)
-                s = [s sprintf('\tmap(''%s'') => %s\n', f{1}, struct2str(this.map(f{1})))]; %#ok<AGROW>
+            for f = asrow(this.results.flds)
+                s = [s sprintf('\tmap(''%s'') => %s\n', f{1}, struct2str(this.map(f{1})))];
             end
         end
         function t    = titlePlot(this, client)

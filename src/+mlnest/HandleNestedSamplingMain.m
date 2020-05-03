@@ -1,5 +1,5 @@
-classdef NestedSamplingMain 
-	%% NESTEDSAMPLINGMAIN implements main.c from "Data Analysis:  A Bayesian Tutorial, Second Edition"
+classdef HandleNestedSamplingMain < handle & matlab.mixin.Copyable
+	%% HANDLENESTEDSAMPLINGMAIN implements main.c from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.2.4.  
     %  (GNU General Public License software, (C) Sivia and Skilling 2006)
 
@@ -12,10 +12,8 @@ classdef NestedSamplingMain
  	%  $Id$ 
 
 	properties 
-        H
-        logZ
         nCheckStoppingCondition = 5
-        nReports = 2
+        nReports = 10
     end 
     
     properties (Dependent)
@@ -28,7 +26,6 @@ classdef NestedSamplingMain
         results
         sigma0       % of model estimation
         STEP_Initial % Initial guess suitable step-size in (0,1)
-        visualize
     end
     
     methods %% GET/SET
@@ -36,92 +33,89 @@ classdef NestedSamplingMain
             g = this.apply_;
         end
         function m = get.map(this)
-            m = this.apply_.map;
+            m = this.apply.map;
         end
         function m = get.MAX(this)
-            m = this.apply_.MAX;
+            m = this.apply.MAX;
         end
         function m = get.MCMC_Counter(this)
-            m = this.apply_.MCMC_Counter;
+            m = this.apply.MCMC_Counter;
         end
         function m = get.Measurement(this)
-            m = this.apply_.Measurement;
+            m = this.apply.Measurement;
         end
         function m = get.n(this)
-            m = this.apply_.n;
+            m = this.apply.n;
         end
         function m = get.results(this)
-            m = this.apply_.results;
+            m = this.apply.results;
         end
         function g = get.STEP_Initial(this)
-            g = this.apply_.STEP_Initial;
+            g = this.apply.STEP_Initial;
         end
         function g = get.sigma0(this)
-            g = this.apply_.sigma0;
-        end
-        function g = get.visualize(this)
-            g = this.apply_.visualize;
+            g = this.apply.sigma0;
         end
     end
 
 	methods 
         function est  = Estimation(this, varargin)
-            est = this.apply_.Estimation(varargin{:});
+            est = this.apply.Estimation(varargin{:});
         end
         function logL = logLhood(this, varargin)
-            logL = this.apply_.logLhood(varargin{:});
+            logL = this.apply.logLhood(varargin{:});
         end
         function Obj  = Prior(this)
-            Obj = this.apply_.Prior;
+            Obj = this.apply.Prior;
         end
         function [obj,acceptRejectRatio] = Explore(this, obj, logLstar)
-            [obj,acceptRejectRatio] = this.apply_.Explore(obj, logLstar);
+            [obj,acceptRejectRatio] = this.apply.Explore(obj, logLstar);
         end   
         
         %% UTILITIES
         
         function        fprintfModel(this)
-            this.apply_.fprintfModel();
+            this.apply.fprintfModel();
         end        
-        function        printResults(this, nest, Samples)
-            % [~,this.apply_] = this.apply_.Results(Samples, nest, this.logZ); % BUG corrupts apply_.results
+        function        printResults(this, nest, logZ, H, Samples)
+            this.apply.Results(Samples, nest, logZ);
             fprintf('-----------------------------------------------------------\n');
             fprintf('# iterates ~ nest = %i <= MAX = %i\n', nest, this.MAX);
             fprintf('# sampling particles ~ n = %f\n', this.n);
             fprintf('MCMC_Counter = %f\n', this.MCMC_Counter);
             fprintf('STEP_Initial = %f\n', this.STEP_Initial);
-            fprintf('Stopping criteria = %f\n', nest/(this.H * this.n))
-            fprintf('Evidence:  ln(Z) = %f +/- %f\n', this.logZ, sqrt(this.H/this.n));
-            fprintf('Information:  H = %f nats = %f bits\n', this.H, this.H/log(2));
+            fprintf('Stopping criteria = %f\n', nest/(H * this.n))
+            fprintf('Evidence:  ln(Z) = %f +/- %f\n', logZ, sqrt(H/this.n));
+            fprintf('Information:  H = %f nats = %f bits\n', H, H/log(2));
             this.fprintfModel()
             fprintf('\t%s(k = %i) = %f\n', 'sampled logL ', nest, Samples{nest}.logL);
             fprintf('\t%s(k = %i) = %f\n', 'sampled logWt', nest, Samples{nest}.logWt);
             fprintf('\n')
         end
         function h    = plotMap(this)
-            h = this.apply_.plotMap();
+            h = this.apply.plotMap();
         end
         function h    = plotMatrix(this)
-            h = this.apply_.plotMatrix();
+            h = this.apply.plotMatrix();
         end
         function h    = plotObjs(this, varargin)
-            h = this.apply_.plotObjs(varargin{:});
+            h = this.apply.plotObjs(varargin{:});
         end
         function h    = plotResults(this)
-            h = this.apply_.plotResults();
+            h = this.apply.plotResults();
         end
         function s =    sprintfModel(this)
-            s = this.apply_.sprintfModel();
+            s = this.apply.sprintfModel();
         end
         
         %%
         
-  		function this = NestedSamplingMain(app) 
- 			%% NESTEDSAMPLINGMAIN 
-            %  @param app is an application object implementing mlnest.IApply
+  		function this = HandleNestedSamplingMain(app) 
+ 			%% HANDLENESTEDSAMPLINGMAIN 
+            %  @param app is an application object implementing mlnest.IHandleApply
             %  @return this
             %
- 			%  Usage:  this = NestedSamplingMain(mlnest.IApply object)
+ 			%  Usage:  this = HandleNestedSamplingMain(mlnest.IHandleApply object)
             %  Internally:
             %     Object Obj[n];        // Collection of n objects
             %     Object Samples[MAX];  // Objects stored for posterior results
@@ -171,9 +165,9 @@ classdef NestedSamplingMain
                     Samples{nest} = Obj{worst};
 
                     %% kill worst object in favour of copy of different survivor
-                    copy = fix(mod(this.n * rand(), this.n)) + 1;
+                    copy = mod(floor(this.n * rand()), this.n) + 1;
                     while (copy == worst && this.n > 1)
-                        copy = fix(mod(this.n * rand(), this.n)) + 1;
+                        copy = mod(floor(this.n * rand()), this.n) + 1; 
                     end
                     logLstar = Obj{worst}.logL;
                     Obj{worst} = Obj{copy};
@@ -190,9 +184,7 @@ classdef NestedSamplingMain
             end
             
             %% finalize with evidence Z, information H, and optional posterior Samples
-            this.logZ = logZ;
-            this.H = H;
-            this = this.finalize(nest, Samples);            
+            this.finalize(nest, logZ, H, Samples);            
         end 
     end 
     
@@ -225,13 +217,11 @@ classdef NestedSamplingMain
         function tf = stoppingConditionMet(this, nest, H)
             tf = nest/(H * this.n) > 4;
         end
-        function this = finalize(this, nest, Samples)
-            [~,this.apply_] = this.apply_.Results(Samples, nest, this.logZ);
-            this.printResults(nest, Samples);
-            if this.visualize
-                this.plotResults();
-                this.plotMatrix();
-            end
+        function      finalize(this, nest, logZ, H, Samples)
+            this.apply_.Results(Samples, nest, logZ);
+            this.printResults(nest, logZ, H, Samples);
+            this.plotResults();
+            this.plotMatrix();
         end
         function printAcceptsRejects(this, nest, acceptRejectRatio)
             if (1        == nest || ...
