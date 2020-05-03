@@ -23,6 +23,7 @@ classdef Linear < mlnest.AbstractApply
         timeInterpolants
         timeLength
         map
+        visualize = true
  	end 
 
 	methods

@@ -1,4 +1,4 @@
-classdef IApply < handle
+classdef IApply
 	%% IAPPLY is an interface for application ideas from "Data Analysis:  A Bayesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2  
 

@@ -1,4 +1,4 @@
-classdef GammaDistributions < handle & mlnest.AbstractApply
+classdef GammaDistributions < mlnest.AbstractApply
 	%% GAMMADISTRIBUTIONS  
 
 	%  $Revision$

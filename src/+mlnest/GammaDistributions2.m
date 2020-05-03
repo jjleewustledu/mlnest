@@ -1,4 +1,4 @@
-classdef GammaDistributions2 < handle & mlnest.GammaDistributions
+classdef GammaDistributions2 < mlnest.GammaDistributions
 	%% GAMMADISTRIBUTIONS2 has ~19% speed up compared to GammaDistributions but may have degraded results
     %  if native |params| >> 1
 
