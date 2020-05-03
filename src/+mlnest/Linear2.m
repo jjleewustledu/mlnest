@@ -12,7 +12,8 @@ classdef Linear2 < mlnest.Linear
 
 	methods
         function est  = Estimation(this, Obj)          
-            est = Obj.slope*this.timeInterpolants + Obj.intercept;
+            Obn = Obj2native(this, Obj);
+            est = Obn.slope*this.timeInterpolants + Obn.intercept;
         end
         
         function this = Linear2(varargin)

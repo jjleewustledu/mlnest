@@ -1,4 +1,4 @@
-classdef Lighthouse < mlnest.AbstractApply 
+classdef Lighthouse < mlnest.AbstractApply
 	%% LIGHTHOUSE implements lighthouse from "Data Analysis:  A BAyesian Tutorial, Second Edition"
     %  by D.S. Sivia and J. Skilling, section 9.3.2
 
@@ -54,11 +54,11 @@ classdef Lighthouse < mlnest.AbstractApply
 
 	properties 
         ignoredObjFields
-         MAX = 1000
-         MCMC_Counter
-         Measurement
- 		 n = 100
-         STEP_Initial
+        MAX = 1000
+        MCMC_Counter
+        Measurement
+        n = 100
+        STEP_Initial
     end 
     
     methods (Static)
@@ -81,6 +81,17 @@ classdef Lighthouse < mlnest.AbstractApply
         end
         
         %%
+        
+        function this = Lighthouse(varargin)
+            this.Measurement =       [ 4.73,  0.45, -1.73,  1.09,  2.19,  0.12, ...
+                  1.31,  1.00,  1.32,  1.07,  0.86, -0.49, -2.59,  1.73,  2.11, ...
+                  1.61,  4.98,  1.71,  2.23,-57.20,  0.96,  1.25, -1.56,  2.45, ...
+                  1.19,  2.17,-10.66,  1.91, -4.16,  1.92,  0.10,  1.98, -2.51, ...
+                  5.55, -0.47,  1.91,  0.95, -0.78, -0.84,  1.72, -0.01,  1.48, ...
+                  2.70,  1.21,  4.41, -4.79,  1.33,  0.81,  0.20,  1.58,  1.29, ...
+                 16.19,  2.75, -2.38, -1.79,  6.50,-18.53,  0.72,  0.94,  3.64, ...
+                  1.94, -0.11,  1.57,  0.57]; % arrival positions
+        end
         
         function logL = logLhood(this, x, y)
             %% LOGLHOOD
@@ -164,17 +175,35 @@ classdef Lighthouse < mlnest.AbstractApply
             r.moment1 = [0 0 x y];
             r.moment2 = [0 0 xx yy];
             this.results_ = r;
-        end
+        end        
         
-        function this = Lighthouse(varargin)            
-            this.Measurement =       [ 4.73,  0.45, -1.73,  1.09,  2.19,  0.12, ...
-                  1.31,  1.00,  1.32,  1.07,  0.86, -0.49, -2.59,  1.73,  2.11, ...
-                  1.61,  4.98,  1.71,  2.23,-57.20,  0.96,  1.25, -1.56,  2.45, ...
-                  1.19,  2.17,-10.66,  1.91, -4.16,  1.92,  0.10,  1.98, -2.51, ...
-                  5.55, -0.47,  1.91,  0.95, -0.78, -0.84,  1.72, -0.01,  1.48, ...
-                  2.70,  1.21,  4.41, -4.79,  1.33,  0.81,  0.20,  1.58,  1.29, ...
-                 16.19,  2.75, -2.38, -1.79,  6.50,-18.53,  0.72,  0.94,  3.64, ...
-                  1.94, -0.11,  1.57,  0.57]; % arrival positions
+        %% UTILITY
+        
+        function fprintfModel(this)
+            return
+            
+            fprintf('Model:\n');
+            for f = 1:length(this.results.flds)
+                fprintf('\t%s = %f +/- %f\n', ...
+                    this.results.flds{f}, ...
+                    this.results.moment1(f), ...
+                    sqrt(this.results.moment2(f) - this.results.moment1(f)^2));
+            end
+            fprintf('\tsigma0 = %f\n', this.sigma0);
+            for f = asrow(this.results.flds)
+                fprintf('\tmap(''%s'') => %s\n', f{1}, struct2str(this.map(f{1})));
+            end
+        end
+        function h = plotMatrix(this)
+            h = [];
+            return
+            
+            if isfield(this.results, 'chains')
+                figure
+                h = plotmatrix(this.results.chains);
+                flds = this.results.flds;
+                title({ this.titlePlot('plotMatrix()') cell2str(flds) })
+            end
         end
     end 
     
@@ -183,7 +212,8 @@ classdef Lighthouse < mlnest.AbstractApply
     methods (Hidden)        
         function obj  = Estimation(~, obj)
         end
-        function plotResults(~)
+        function h = plotResults(~)
+            h = [];
         end
     end
 
