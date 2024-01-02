@@ -13,6 +13,21 @@ classdef ExampleArtery < handle & mlsystem.IHandle
         times_sampled
     end
 
+    properties (Dependent)
+        preferred_names
+    end
+
+    methods %% GET
+        function g = get.preferred_names(~)
+            g = ["b"; ...
+                "b"; ...
+                "p"; ...
+                "t_0"; ...
+                "ss"; ...
+                "g"];
+        end
+    end
+
     methods
         function ic = simulate(this, product, opts)
             arguments
@@ -27,7 +42,7 @@ classdef ExampleArtery < handle & mlsystem.IHandle
                     post_proc=stackstr(use_dashes=true));
             end
             
-            pr = this.prior;
+            pr = this.prior(this.Data);
             parnames = [pr(:,1); fields(this.Data)];
             parvals = [num2cell(ascol(product.ks)); struct2cell(this.Data)];
             img = this.signalmodel(this.times_sampled, parnames, parvals);
@@ -55,10 +70,9 @@ classdef ExampleArtery < handle & mlsystem.IHandle
             this.measurement_sigma = 0.05*M0*ones(size(this.measurement));
 
             this.Data.M0 = M0;
-            this.Data.N = floor(this.times_sampled(end) - this.times_sampled(1)) + 1; % missing ts(1) -> bugs elsewhere?
             this.Data.tracer = opts.tracer;
         end
-        function p = prior()
+        function p = prior(~)
             p = {'a', 'uniform', 0.5, 2, 'fixed'; ...
                  'b', 'uniform', 0.05, 0.15, 'fixed'; ...
                  'p', 'uniform', 0.25, 3, 'fixed'; ...

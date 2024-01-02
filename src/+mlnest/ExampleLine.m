@@ -12,6 +12,16 @@ classdef ExampleLine < handle & mlsystem.IHandle
         times_sampled
     end
 
+    properties (Dependent)
+        preferred_names
+    end
+
+    methods %% GET
+        function g = get.preferred_names(~)
+            g = ["m"; "b"];
+        end
+    end
+
     methods
         function this = ExampleLine()
             this.Data = struct();
@@ -21,10 +31,18 @@ classdef ExampleLine < handle & mlsystem.IHandle
             this.measurement = data{2}(5:end);
             this.measurement_sigma = data{3}(5:end);
         end
+        function [s,s1] = simulate(this)
+            arguments
+                this mlnest.ExampleLine
+            end
+            
+            s = [];
+            s1 = s;
+        end
     end
 
     methods (Static)
-        function p = prior()
+        function p = prior(~)
             p = {'m', 'uniform', 0, 10, 'fixed'; ...
                  'b', 'uniform', 0, 100, 'fixed'};
         end

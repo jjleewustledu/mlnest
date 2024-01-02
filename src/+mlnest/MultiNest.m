@@ -87,6 +87,7 @@ classdef MultiNest < mlio.AbstractIO
     properties (Dependent)
         Data_cell       % primary data as cell array structured as expected by nested_sampler()
         Data_cell_extra % extra data as cell array structured as expected by nested_sampler()
+        preferred_names
         product
     end
 
@@ -99,6 +100,13 @@ classdef MultiNest < mlio.AbstractIO
         end
         function g = get.Data_cell_extra(this)
             g = [fields(this.Data), struct2cell(this.Data)];
+        end
+        function g = get.preferred_names(this)
+            if isemptytext(this.context.preferred_names)
+                g = this.Prior{:,1};
+                return
+            end
+            g = this.context.preferred_names;
         end
         function g = get.product(this)
             g = this.product_;
@@ -114,36 +122,58 @@ classdef MultiNest < mlio.AbstractIO
                 k(ki) = this.posteriors(this.post_samples_, ki, {this.Prior{ki,1}}, show_plot=false);
             end
         end
-        function logL = loss(this, opts)
-            %% smaller positive is better
+        function loss_ = loss(this)
+            %% smaller positive is better ~ sum(abs(fitted/measured - 1))
 
             arguments
                 this mlnest.MultiNest
-                opts.signal_model function_handle 
             end
 
-            params_names = [this.Prior(:,1); this.Data_cell_extra(:,1)];
-            params_values = [num2cell(ascol(this.ks())); this.Data_cell_extra(:,2)];
-            logL = this.logL_gaussian( ...
-                this.Data_cell, opts.signal_model, params_names, params_values);
-            logL = abs(logL);
+            % params_names = [this.Prior(:,1); this.Data_cell_extra(:,1)];
+            % params_values = [num2cell(ascol(this.ks())); this.Data_cell_extra(:,2)];
+            % loss_ = this.logL_gaussian( ...
+            %     this.Data_cell, opts.signal_model, params_names, params_values);
+
+            try
+                product0 = struct( ...
+                    'ks', this.ks(), ...
+                    'logZ', this.logZ_, ...
+                    'loss', NaN);
+                fitted = asrow(double(this.simulate(product0))); % simulate() returns [signal, ideal]
+                measured = asrow(this.Measurement);
+                positive = fitted + measured > 0;
+                fp = fitted(positive);
+                mp = measured(positive);
+                loss_ = mean(abs(2*(fp - mp)./(fp + mp))); % unbiased mean abs residual
+            catch ME
+                handwarning(ME)
+                loss_ = [];
+            end
         end
-        function plot(~)
-            ic = obj.simulate();
-            plot(ic);
-            title(stackstr());
-        end
-        function plot_posteriors(this)
+        function plot_posteriors(this, opts)
+            arguments
+                this mlnest.MultiNest
+                opts.singles logical = true
+                opts.montage logical = true
+                opts.do_save logical = false
+            end
+
             pwd0 = pushd(this.filepath);
             
-            for ki = 1:size(this.Prior, 1)
-                pname = {this.Prior{ki,1}};
-                this.posteriors(this.product_.post_samples, ki, pname);
+            if opts.singles
+                for ki = 1:size(this.Prior, 1)
+                    pname = this.preferred_names(ki);
+                    this.posteriors(this.product.post_samples, ki, pname);
+                end
             end
-
-            wp = 1:size(this.Prior, 1);
-            pnames = asrow(this.Prior(:,1));
-            this.posteriors(this.product_.post_samples, wp, pnames);
+            if opts.montage
+                wp = 1:size(this.Prior, 1);
+                pnames = asrow(this.preferred_names);
+                this.posteriors(this.product.post_samples, wp, pnames);
+            end
+            if opts.do_save
+                saveFigures(this.filepath)
+            end
 
             popd(pwd0);
         end
@@ -166,7 +196,21 @@ classdef MultiNest < mlio.AbstractIO
             est = est*int_dt_M/int_dt_est;
         end
         function save(this)
-            save(strcat(this.fileprefix, ".mat"), "this");
+            try
+                fp = mlpipeline.Bids.adjust_fileprefix( ...
+                    this.context.artery.fileprefix, ...
+                    post_proc=stackstr(3, use_dashes=true)+"-"+this.context.datestr());
+            catch ME
+                handwarning(ME)
+                fp = this.fileprefix+"-"+this.context.datestr();
+            end
+            fqfp = fullfile(this.filepath, fp);
+            save(strcat(fqfp, ".mat"), "this");
+            
+            warning("off", "MATLAB:structOnObject");
+            struct_this = struct(this);
+            save(strcat(fqfp, "_struct.mat"), "struct_this"); % anticipating changing MultiNest src.
+            warning("on", "MATLAB:structOnObject");
         end
         function saveas(this, fn)
             save(fn, "this");
@@ -190,7 +234,7 @@ classdef MultiNest < mlio.AbstractIO
                 this mlnest.MultiNest
                 opts.DEBUG double = 0
                 opts.likelihood function_handle = @mlnest.MultiNest.logL_gaussian
-                opts.Nlive double = 500
+                opts.Nlive double = 50
                 opts.Nmcmc double = 0 % number of iterations for MCMC sampling: (enter 0 for multinest sampling)
                 opts.signal_model function_handle
                 opts.tol double = 0.1
@@ -211,26 +255,33 @@ classdef MultiNest < mlio.AbstractIO
 
             this.product_ = struct( ...
                 'ks', this.ks(), ...
+                'likelihood', func2str(opts.likelihood), ...
                 'logZ', this.logZ_, ...
-                'loss', this.loss(signal_model=opts.signal_model), ...
+                'loss', this.loss(), ...
                 'nest_samples', this.nest_samples_, ...
-                'post_samples', this.post_samples_);
+                'Nlive', opts.Nlive, ...
+                'Nmcmc', opts.Nmcmc, ...
+                'post_samples', this.post_samples_, ...
+                'signal_model', func2str(opts.signal_model), ...
+                'tol', opts.tol);
         end
 
         function this = MultiNest(opts)
             arguments
                 opts.context mlsystem.IHandle
-                opts.fileprefix {mustBeTextScalar} = stackstr()
+                opts.filepath {mustBeFolder} = pwd
+                opts.fileprefix {mustBeTextScalar} = stackstr(3)
             end
 
             % first-order vars
             this.context = opts.context;
+            this.filepath = opts.filepath;
             this.fileprefix = opts.fileprefix;
 
             % second-order vars; copy objects for speed
             this.Data = this.context.Data;
             this.Measurement = this.context.measurement;
-            this.Prior = this.context.prior();
+            this.Prior = this.context.prior(this.Data);
             this.Sigma = this.context.measurement_sigma;
             this.TimesSampled = this.context.times_sampled;
         end
@@ -748,10 +799,10 @@ classdef MultiNest < mlio.AbstractIO
                 elseif lwp > 2
                     % make tiled 2-d histogram plots
                     figure()
-                    tiledlayout(lwp, lwp);
+                    tiledlayout(lwp, lwp, TileSpacing="tight");
                     for p2 = wp
-                        for p1 = wp
-                            nexttile;
+                        for p1 = flip(wp)
+                            ax = nexttile;
 
                             edges1 = linspace(min(post_samples(:,p1)), max(post_samples(:,p1)), nbins);
                             edges2 = linspace(min(post_samples(:,p2)), max(post_samples(:,p2)), nbins);
@@ -759,9 +810,16 @@ classdef MultiNest < mlio.AbstractIO
 
                             imagesc(edges1, edges2, transpose(histmat));
                             colormap(viridis)
-                            set(gca,'YDir','normal')
-                            xlabel(parnames{p1},'fontsize',12,'FontWeight','normal');
-                            ylabel(parnames{p2},'fontsize',12,'FontWeight','normal');
+                            set(ax,'YDir','normal')
+                            ax.Visible = "off";
+                            if p2 == wp(end)
+                                ax.XAxis.Visible = "on";
+                                xlabel(parnames{p1},'fontsize',12,'FontWeight','normal');
+                            end
+                            if p1 == wp(end)
+                                ax.YAxis.Visible = "on";
+                                ylabel(parnames{p2},'fontsize',12,'FontWeight','normal');
+                            end
                         end
                     end
                 end
