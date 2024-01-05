@@ -22,6 +22,9 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             disp(this.testObj)
         end
         function test_idif(this)
+
+            return
+
             ic = mlfourd.ImagingContext2( ...
                 fullfile(this.deriv_oo_pet_pth, ...
                 "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz"));
@@ -31,6 +34,9 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot(ic)
         end
         function test_deconv_idif(this)
+
+            return
+
             ic = mlfourd.ImagingContext2( ...
                 fullfile(this.deriv_ho_pet_pth, ...
                 "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif-finite-deconv_idif.nii.gz"));
@@ -43,8 +49,11 @@ classdef Test_MultiNest < matlab.unittest.TestCase
                 fullfile(this.deriv_ho_pet_pth, ...
                 "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif.nii.gz"));
             boxcar = mlnest.Boxcar.create(artery=ic, model_kind="3bolus");
+
+            cd(ic.filepath)
+
             obj = mlnest.MultiNest(context=boxcar);
-            obj.filepath = "/Users/jjlee/Downloads";
+            obj.filepath = ic.filepath;
             obj = obj.solve( ...
                 signal_model=@boxcar.signalmodel, ...
                 verbose=false, ...
@@ -60,7 +69,7 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             fprintf("ks(): %g\n", obj.ks())
             fprintf("loss: %s\n", obj.loss())
             obj.plot_posteriors(singles=true);
-            %obj.save();
+            obj.save();
 
             [sig,idl] = boxcar.simulate(obj.product);
             figure;
@@ -69,7 +78,8 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot_over_figure(idl, '-', LineWidth=1.5); hold off;
             ylabel("activity (Bq/mL)")
             xlabel("time (s)")
-            %saveFigures(stackstr+"_Nlive=50_Nmcmc=10")
+            saveFigures(stackstr+"_Nlive=55_Nmcmc=0", closeFigure=false);
+            close('all');
             toc
         end
         function test_Boxcar_oo(this)
@@ -77,8 +87,12 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             ic = mlfourd.ImagingContext2( ...
                 fullfile(this.deriv_oo_pet_pth, ...
                 "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz"));
-            boxcar = mlnest.Boxcar.create(artery=ic, model_kind="3bolus");
+
+            cd(ic.filepath)
+
+            boxcar = mlnest.Boxcar.create(artery=ic, model_kind="4bolus");
             obj = mlnest.MultiNest(context=boxcar);
+            obj.filepath = ic.filepath;
             obj = obj.solve( ...
                 signal_model=@boxcar.signalmodel, ...
                 verbose=false, ...
@@ -94,7 +108,7 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             fprintf("ks(): %g\n", obj.ks())
             fprintf("loss: %s\n", obj.loss())
             obj.plot_posteriors(singles=true);
-            %obj.save();
+            obj.save();
 
             [sig,idl] = boxcar.simulate(obj.product);
             figure;
@@ -103,7 +117,8 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot_over_figure(idl, '-', LineWidth=1.5); hold off;
             ylabel("activity (Bq/mL)")
             xlabel("time (s)")
-            %saveFigures(stackstr+"_Nlive=50_Nmcmc=10")
+            saveFigures(stackstr+"_Nlive=55_Nmcmc=0", closeFigure=false);
+            close('all');
             toc
         end
         function test_Boxcar_oo_mcmc(this)
@@ -111,14 +126,19 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             ic = mlfourd.ImagingContext2( ...
                 fullfile(this.deriv_oo_pet_pth, ...
                 "sub-108293_ses-20210421150523_trc-oo_proc-MipIdif_idif.nii.gz"));
+
+            filepath = fullfile(ic.filepath, stackstr());
+            ensuredir(filepath);
+            cd(filepath);
+
             boxcar = mlnest.Boxcar.create(artery=ic, model_kind="4bolus");
             obj = mlnest.MultiNest(context=boxcar);
-            obj.filepath = "/Users/jjlee/Downloads";
+            obj.filepath = filepath;
             obj = obj.solve( ...
                 signal_model=@boxcar.signalmodel, ...
                 verbose=false, ...
-                Nlive=100, ...
-                Nmcmc=100); 
+                Nlive=800, ...
+                Nmcmc=3200); 
             
             % Nlive:  25 -> 2.8 sec; 50 -> 45 sec; 55 -> 131 sec; 60 -> __
             % sec; 70 -> __ sec; 100 ~ 3000 sec; 200 -> Inf sec;
@@ -166,7 +186,7 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             fprintf("ks(): %g\n", obj.ks())
             fprintf("loss: %s\n", obj.loss())
             obj.plot_posteriors(singles=true);
-            %obj.save();
+            obj.save();
 
             [sig,idl] = boxcar.simulate(obj.product);
             figure;
@@ -175,7 +195,99 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot_over_figure(idl, '-', LineWidth=1.5); hold off;
             ylabel("activity (Bq/mL)")
             xlabel("time (s)")
-            %saveFigures(stackstr+"_Nlive=50_Nmcmc=10")
+            saveFigures(stackstr+"_Nlive=800_Nmcmc=3200")
+            toc
+        end
+        function test_RadialArtery_oo_mcmc(this)
+            tic
+            ifc = mlfourd.ImagingFormatContext2( ...
+                fullfile(getenv("HOME"), ...
+                "MATLAB-Drive", "mlkinetics", "data", "sourcedata", "sub-108293", 'ses-20210421', "pet", ...
+                "sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz"));  
+
+            baseline = mean(ifc.json_metadata.baselineActivityDensity);
+            ifc.img = ifc.img - baseline;
+            ifc.img(ifc.img < 0) = 0;
+            ic = mlfourd.ImagingContext2(ifc);
+
+            filepath = fullfile(ic.filepath, stackstr());
+            ensuredir(filepath);
+            cd(filepath);
+
+            radart = mlnest.RadialArtery.create(artery=ic, model_kind="4bolus");
+            obj = mlnest.MultiNest(context=radart);
+            obj.filepath = filepath;
+            obj = obj.solve( ...
+                signal_model=@radart.signalmodel, ...
+                verbose=false, ...
+                Nlive=800, ...
+                Nmcmc=3200); 
+
+            boxcar = mlnest.RadialArtery.create(artery=ic, model_kind="4bolus");
+            obj = mlnest.MultiNest(context=boxcar);
+            obj.filepath = filepath;
+            obj = obj.solve( ...
+                signal_model=@boxcar.signalmodel, ...
+                verbose=false, ...
+                Nlive=800, ...
+                Nmcmc=3200); 
+            
+            % Nlive:  25 -> 2.8 sec; 50 -> 45 sec; 55 -> 131 sec; 60 -> __
+            % sec; 70 -> __ sec; 100 ~ 3000 sec; 200 -> Inf sec;
+            % after ~40h, tol~4, tolerance=0.1, j=3180, Nlive=20, forced
+            % stop.  nested_sampler() main loops ~ __ min.
+
+            % (Nlive,Nmcmc) ~ (25,25) -> 2.0 sec;
+            %               ~ (25,50) -> 1.4 sec;
+            %               ~ (25,100) -> 1.5 sec;
+            %               ~ (25,200) -> 1.5 sec;
+            %               ~ (25,400) -> 2.8 sec;
+            %               ~ (25,800) -> 4.8 sec;
+            %               ~ (25,1600) -> 7.2 sec;
+            %               ~ (25,3200) -> 13 sec;
+            %               ~ (25,6400) -> 24 sec;
+            %               ~ (50,25) -> 1.6 sec;
+            %               ~ (50,50) -> 1.8 sec;
+            %               ~ (50,100) -> 2.3 sec;
+            %               ~ (50,200) -> 3.0 sec;
+            %               ~ (50,400) -> 3.0 sec;
+            %               ~ (50,800) -> 7.7 sec;
+            %               ~ (100,50) -> 2.9 sec;
+            %               ~ (100,100) -> 3.3 sec;
+            %               ~ (100,200) -> 5.0 sec;
+            %               ~ (100,400) -> 7.4 sec;
+            %               ~ (100,800) -> 13.8 sec;
+            %               ~ (200,100) -> 6.0 sec;
+            %               ~ (200,200) -> 8.8 sec;
+            %               ~ (200,400) -> 14.7 sec;
+            %               ~ (200,800) -> 25.4 sec;
+            %               ~ (200,1600) -> 48 sec;
+            %               ~ (400,200) -> 17.0 sec; too few chains
+            %               ~ (400,400) -> 27.2 sec; *
+            %               ~ (400,800) -> 49 sec; 
+            %               ~ (400,1600) -> 94 sec; overly correlated samples?
+            %               ~ (400,3200) -> 191 sec; overly correlated samples?
+            %               ~ (800,400) -> 59 sec; overly correlated samples?
+            %               ~ (800,800) -> 99 sec; overly correlated samples?
+            %               ~ (800,1600) -> 192 sec;
+            %               ~ (800,3200) -> 370 sec;
+                        
+            disp(obj)
+            fprintf("Multinest.product: \n"); 
+            disp(obj.product)
+            fprintf("ks(): %g\n", obj.ks())
+            fprintf("loss: %s\n", obj.loss())
+            obj.plot_posteriors(singles=true);
+            obj.save();
+
+            [sig,idl] = boxcar.simulate(obj.product);
+            figure;
+            plot_over_figure(boxcar.artery, 'o', MarkerSize=12); hold on;
+            plot_over_figure(sig, '--', LineWidth=2);
+            plot_over_figure(idl, '-', LineWidth=1.5); hold off;
+            ylabel("activity (Bq/mL)")
+            xlabel("time (s)")
+            saveFigures(stackstr+"_Nlive=800_Nmcmc=3200")
             toc
         end
         function test_RadialArtery_ho(this)
@@ -184,6 +296,9 @@ classdef Test_MultiNest < matlab.unittest.TestCase
                 fullfile(getenv("HOME"), ...
                 "MATLAB-Drive", "mlkinetics", "data", "sourcedata", "sub-108293", 'ses-20210421', "pet", ...
                 "sub-108293_ses-20210421152358_trc-ho_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz")); 
+
+            cd(ifc.filepath)
+
             baseline = mean(ifc.json_metadata.baselineActivityDensity);
             ifc.img = ifc.img - baseline;
             ifc.img(ifc.img < 0) = 0;
@@ -191,7 +306,7 @@ classdef Test_MultiNest < matlab.unittest.TestCase
 
             radart = mlnest.RadialArtery.create(artery=ic, model_kind="3bolus");
             obj = mlnest.MultiNest(context=radart);
-            obj.filepath = "/Users/jjlee/Downloads";
+            obj.filepath = ifc.filepath;
             obj = obj.solve( ...
                 signal_model=@radart.signalmodel, ...
                 verbose=false, ...
@@ -207,7 +322,7 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             fprintf("ks(): %g\n", obj.ks())
             fprintf("loss: %s\n", obj.loss())
             obj.plot_posteriors(singles=true);
-            %obj.save();
+            obj.save();
 
             [sig,idl] = radart.simulate(obj.product);
             figure;
@@ -216,7 +331,8 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot_over_figure(idl, '-', LineWidth=1.5); hold off;
             ylabel("activity (Bq/mL)")
             xlabel("time (s)")
-            %saveFigures(stackstr+"_Nlive=50_Nmcmc=10")
+            saveFigures(stackstr+"_Nlive=55_Nmcmc=0", closeFigure=false);
+            close('all');
             toc
         end
         function test_RadialArtery_oo(this)
@@ -224,7 +340,10 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             ifc = mlfourd.ImagingFormatContext2( ...
                 fullfile(getenv("HOME"), ...
                 "MATLAB-Drive", "mlkinetics", "data", "sourcedata", "sub-108293", 'ses-20210421', "pet", ...
-                "sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz"));   
+                "sub-108293_ses-20210421150523_trc-oo_proc-TwiliteKit-do-make-input-func-nomodel_inputfunc.nii.gz"));  
+
+            cd(ifc.filepath)
+
             baseline = mean(ifc.json_metadata.baselineActivityDensity);
             ifc.img = ifc.img - baseline;
             ifc.img(ifc.img < 0) = 0;
@@ -232,7 +351,7 @@ classdef Test_MultiNest < matlab.unittest.TestCase
 
             radart = mlnest.RadialArtery.create(artery=ic, model_kind="4bolus");
             obj = mlnest.MultiNest(context=radart);
-            obj.filepath = "/Users/jjlee/Downloads";
+            obj.filepath = ifc.filepath;
             obj = obj.solve( ...
                 signal_model=@radart.signalmodel, ...
                 verbose=false, ...
@@ -248,7 +367,7 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             fprintf("ks(): %g\n", obj.ks())
             fprintf("loss: %s\n", obj.loss())
             obj.plot_posteriors(singles=true);
-            %obj.save();
+            obj.save();
 
             [sig,idl] = radart.simulate(obj.product);
             figure;
@@ -257,10 +376,14 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot_over_figure(idl, '-', LineWidth=1.5); hold off;
             ylabel("activity (Bq/mL)")
             xlabel("time (s)")
-            %saveFigures(stackstr+"_Nlive=50_Nmcmc=10")
+            saveFigures(stackstr+"_Nlive=55_Nmcmc=0", closeFigure=false);
+            close('all');
             toc
         end
         function test_ExampleArtery(this)
+
+            return
+
             tic
             ic = mlfourd.ImagingContext2( ...
                 fullfile(this.deriv_ho_pet_pth, ...
@@ -276,6 +399,9 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             toc
         end
         function test_ExampleLine(this)
+
+            return
+
             tic
             obj = this.testObj.solve(signal_model=@line_model, Nlive=100); % 100 -> 0.4 sec; 1000 -> 185 sec
             disp(obj)

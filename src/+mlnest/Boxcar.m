@@ -32,6 +32,7 @@ classdef (Abstract) Boxcar < handle & mlnest.Artery
             end
 
             this.artery = mlpipeline.ImagingMediator.ensureFiniteImagingContext(opts.artery);
+            %this.artery.save();
             ifc = this.artery.imagingFormat;
             this.times_sampled = asrow(ifc.json_metadata.timesMid);
             this.measurement = asrow(double(ifc.img));
