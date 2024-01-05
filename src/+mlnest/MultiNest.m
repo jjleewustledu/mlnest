@@ -183,7 +183,7 @@ classdef MultiNest < mlio.AbstractIO
                 this.posteriors(this.product.post_samples, wp, pnames);
             end
             if opts.do_save
-                saveFigures(this.filepath, prefix=this.new_fqfp(), closeFigure=true);
+                saveFigures(this.new_fqfp(), closeFigure=true);
             end
 
             popd(pwd0);
