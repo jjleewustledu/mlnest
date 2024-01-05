@@ -813,7 +813,7 @@ classdef MultiNest < mlio.AbstractIO
                     ylabel(parnames{2},'fontsize',16,'FontWeight','bold');
                 elseif lwp > 2
                     % make tiled 2-d histogram plots
-                    figure()
+                    h = figure();
                     tiledlayout(lwp, lwp, TileSpacing="tight");
                     for p2 = wp
                         for p1 = flip(wp)
@@ -837,6 +837,7 @@ classdef MultiNest < mlio.AbstractIO
                             end
                         end
                     end
+                    set(h, position=[1,1,1400,1100]) % position and size of window on display
                 end
             end
         end
