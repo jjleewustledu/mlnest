@@ -230,13 +230,13 @@ classdef MultiNest < mlio.AbstractIO
             this.fqfn = fqfn;
             this.save();
         end
-        function ic = simulate(this, product)
+        function [signal_ic,ideal_ic] = simulate(this, product)
             arguments
                 this mlnest.MultiNest
                 product struct = this.product
             end
 
-            ic = this.context.simulate(product);
+            [signal_ic,ideal_ic] = this.context.simulate(product);
         end
         function this = solve(this, opts)
             % example: (from hogg et al., 1008.4686)
