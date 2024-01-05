@@ -150,6 +150,17 @@ classdef MultiNest < mlio.AbstractIO
                 loss_ = [];
             end
         end
+        function fqfp = new_fqfp(this)
+            try
+                fp = mlpipeline.Bids.adjust_fileprefix( ...
+                    this.context.artery.fileprefix, ...
+                    post_proc=stackstr(3, use_dashes=true)+"-"+this.context.datestr());
+            catch ME
+                handwarning(ME)
+                fp = stackstr(3, use_dashes=true)+"-"+this.context.datestr();
+            end
+            fqfp = fullfile(this.filepath, fp);
+        end
         function plot_posteriors(this, opts)
             arguments
                 this mlnest.MultiNest
@@ -172,7 +183,7 @@ classdef MultiNest < mlio.AbstractIO
                 this.posteriors(this.product.post_samples, wp, pnames);
             end
             if opts.do_save
-                saveFigures(this.filepath)
+                saveFigures(this.filepath, prefix=this.new_fqfp(), closeFigure=true);
             end
 
             popd(pwd0);
@@ -196,24 +207,28 @@ classdef MultiNest < mlio.AbstractIO
             est = est*int_dt_M/int_dt_est;
         end
         function save(this)
-            try
-                fp = mlpipeline.Bids.adjust_fileprefix( ...
-                    this.context.artery.fileprefix, ...
-                    post_proc=stackstr(3, use_dashes=true)+"-"+this.context.datestr());
-            catch ME
-                handwarning(ME)
-                fp = this.fileprefix+"-"+this.context.datestr();
-            end
-            fqfp = fullfile(this.filepath, fp);
-            save(strcat(fqfp, ".mat"), "this");
+            this.fqfp = this.new_fqfp();
+
+            % save this
+            save(strcat(this.fqfp, ".mat"), "this");
             
+            % save struct
             warning("off", "MATLAB:structOnObject");
             struct_this = struct(this);
-            save(strcat(fqfp, "_struct.mat"), "struct_this"); % anticipating changing MultiNest src.
+            save(strcat(this.fqfp, "_struct.mat"), "struct_this"); % anticipating changing MultiNest src.
             warning("on", "MATLAB:structOnObject");
+
+            % save simulated signal, ideal
+            [sig,idl] = this.simulate();
+            sig.save();
+            idl.save();
         end
-        function saveas(this, fn)
-            save(fn, "this");
+        function saveall(this)
+            this.save();
+        end
+        function saveas(this, fqfn)
+            this.fqfn = fqfn;
+            this.save();
         end
         function ic = simulate(this, product)
             arguments
