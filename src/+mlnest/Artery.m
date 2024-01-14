@@ -4,8 +4,7 @@ classdef (Abstract) Artery < handle & mlsystem.IHandle
     %  
     %  Created 22-Dec-2023 23:26:53 by jjlee in repository /Users/jjlee/MATLAB-Drive/mlnest/src/+mlnest.
     %  Developed on Matlab 23.2.0.2459199 (R2023b) Update 5 for MACA64.  Copyright 2023 John J. Lee.
-    
-    
+        
     methods (Abstract, Static)
         create()
         signalmodel()

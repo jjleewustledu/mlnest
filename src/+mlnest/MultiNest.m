@@ -114,12 +114,13 @@ classdef MultiNest < mlio.AbstractIO
     end
 
     methods
-        function k = ks(this)
+        function [meank,stdk] = ks(this)
             %% returns row vector
 
-            k = zeros(1, size(this.Prior, 1));
+            meank = zeros(1, size(this.Prior, 1));
+            stdk = zeros(1, size(this.Prior, 1));
             for ki = 1:size(this.Prior, 1)
-                k(ki) = this.posteriors(this.post_samples_, ki, {this.Prior{ki,1}}, show_plot=false);
+                [meank(ki),stdk(ki)] = this.posteriors(this.post_samples_, ki, {this.Prior{ki,1}}, show_plot=false);
             end
         end
         function loss_ = loss(this)
@@ -135,8 +136,10 @@ classdef MultiNest < mlio.AbstractIO
             %     this.Data_cell, opts.signal_model, params_names, params_values);
 
             try
+                [mean_ks,std_ks] = this.ks();
                 product0 = struct( ...
-                    'ks', this.ks(), ...
+                    'mean_ks', mean_ks, ...
+                    'std_ks', std_ks, ...
                     'logZ', this.logZ_, ...
                     'loss', NaN);
                 fitted = asrow(double(this.simulate(product0))); % simulate() returns [signal, ideal]
@@ -219,9 +222,13 @@ classdef MultiNest < mlio.AbstractIO
             warning("on", "MATLAB:structOnObject");
 
             % save simulated signal, ideal
-            [sig,idl] = this.simulate();
-            sig.save();
-            idl.save();
+            try
+                [sig,idl] = this.simulate();
+                sig.save();
+                idl.save();
+            catch ME
+                handwarning(ME)
+            end
         end
         function saveall(this)
             this.save();
@@ -268,8 +275,10 @@ classdef MultiNest < mlio.AbstractIO
                 this.Data_cell, opts.Nlive, ...
                 opts.tol, opts.likelihood, opts.signal_model, this.Prior, this.Data_cell_extra, Nmcmc=opts.Nmcmc);
 
+            [mean_ks,std_ks] = this.ks();
             this.product_ = struct( ...
-                'ks', this.ks(), ...
+                'mean_ks', mean_ks, ...
+                'std_ks', std_ks, ...
                 'likelihood', func2str(opts.likelihood), ...
                 'logZ', this.logZ_, ...
                 'loss', this.loss(), ...

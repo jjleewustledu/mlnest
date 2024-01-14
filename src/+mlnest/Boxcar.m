@@ -60,6 +60,7 @@ classdef (Abstract) Boxcar < handle & mlnest.Artery
                 Data struct = []
             end      
             if isempty(Data)
+                vec = vec_;
                 return
             end
             timesMid = Data.timesMid;

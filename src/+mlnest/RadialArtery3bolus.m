@@ -81,9 +81,9 @@ classdef RadialArtery3bolus < handle & mlnest.RadialArtery
             % stretched gamma distribution + recirc stretched gamma distribution + rising steadystate; 
             %  forcing p2 = p - dp2 < p, to be more dispersive
 
-            import mlnest.Boxcar3bolus.prior
-            import mlnest.Boxcar3bolus.solution_1bolus
-            import mlnest.Boxcar3bolus.solution_2bolus
+            import mlnest.RadialArtery3bolus.prior
+            import mlnest.RadialArtery3bolus.solution_1bolus
+            import mlnest.RadialArtery3bolus.solution_2bolus
             import mlnest.Artery.slide
 
             t = Data.t;

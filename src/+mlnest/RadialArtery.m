@@ -65,6 +65,7 @@ classdef RadialArtery < handle & mlnest.Artery
                 Data struct = []
             end      
             if isempty(Data)
+                vec = vec_;
                 return
             end
             vec = conv(vec_, Data.kernel);
