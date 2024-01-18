@@ -42,12 +42,12 @@ classdef (Abstract) Artery < handle & mlsystem.IHandle
             
             pr = this.prior(this.Data);
             parnames = [pr(:,1); fields(this.Data)];
-            parvals = [num2cell(ascol(product.ks)); struct2cell(this.Data)];
+            parvals = [num2cell(ascol(product.mean_ks)); struct2cell(this.Data)];
             [signal_numer,ideal_numer] = this.signalmodel(ascol(this.times_sampled), parnames, parvals);
 
             ic = copy(this.artery);
 
-            ic.json_metadata.ks = product.ks;
+            ic.json_metadata.mean_ks = product.mean_ks;
             ic.json_metadata.logZ = product.logZ;
             ic.json_metadata.loss = product.loss;
             ic.json_metadata.M0 = this.Data.M0;
