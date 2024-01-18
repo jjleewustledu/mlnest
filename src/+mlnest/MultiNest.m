@@ -210,7 +210,6 @@ classdef MultiNest < mlio.AbstractIO
             est = est*int_dt_M/int_dt_est;
         end
         function save(this)
-            this.fqfp = this.new_fqfp();
 
             % save this
             save(strcat(this.fqfp, ".mat"), "this");
@@ -227,7 +226,7 @@ classdef MultiNest < mlio.AbstractIO
                 sig.save();
                 idl.save();
             catch ME
-                handwarning(ME)
+                fprintf("%s: %s\n", stackstr(), ME.message)
             end
         end
         function saveall(this)
@@ -308,6 +307,8 @@ classdef MultiNest < mlio.AbstractIO
             this.Prior = this.context.prior(this.Data);
             this.Sigma = this.context.measurement_sigma;
             this.TimesSampled = this.context.times_sampled;
+
+            this.fqfp = this.new_fqfp();
         end
     end
 

@@ -40,9 +40,9 @@ classdef IchiseVasc < handle & mlnest.Ichise
 
             % blocking
             p(1,:) = {'k1', 'uniform', 0.05, 20, 'fixed'}; % 1/K_1
-            p(2,:) = {'k2', 'uniform', 2, 2e3, 'fixed'}; % 1/k_2
-            p(3,:) = {'k3', 'uniform', 2, 2e3, 'fixed'}; % 1/k_3
-            p(4,:) = {'k4', 'uniform', 2, 2e3, 'fixed'}; % 1/k_4
+            p(2,:) = {'k2', 'uniform', 5, 1e3, 'fixed'}; % 1/k_2
+            p(3,:) = {'k3', 'uniform', 5, 1e3, 'fixed'}; % 1/k_3
+            p(4,:) = {'k4', 'uniform', 5, 1e3, 'fixed'}; % 1/k_4
             p(5,:) = {'k5', 'uniform', 1, 10, 'fixed'}; % V_P
             p(6,:) = {'k6', 'uniform', 10, 100, 'fixed'}; % V_N + V_S
             p(7,:) = {'k7', 'uniform', 0.8, 1.2, 'fixed'}; % amplitude
