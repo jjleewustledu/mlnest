@@ -156,11 +156,11 @@ classdef MultiNest < mlio.AbstractIO
         function fqfp = new_fqfp(this)
             try
                 fp = mlpipeline.Bids.adjust_fileprefix( ...
-                    this.context.artery.fileprefix, ...
+                    this.context.fileprefix, ...
                     post_proc=stackstr(3, use_dashes=true)+"-"+this.context.datestr());
             catch ME
                 handwarning(ME)
-                fp = stackstr(3, use_dashes=true)+"-"+this.context.datestr();
+                fp = stackstr(3, use_dashes=true)+"-"+this.datestr();
             end
             fqfp = fullfile(this.filepath, fp);
         end
@@ -193,7 +193,7 @@ classdef MultiNest < mlio.AbstractIO
         end
         function est = rescaleModelEstimate(this, est, opts)
             arguments
-                this mloptimization.SimulatedAnnealing
+                this mlnest.MutliNest
                 est {mustBeNumeric}
                 opts.norm {mustBeTextScalar} = "max"
             end
@@ -313,6 +313,9 @@ classdef MultiNest < mlio.AbstractIO
     end
 
     methods (Static)
+        function ds = datestr()
+            ds = string(datetime("now", Format="yyyyMMddHHmmss"));
+        end
         function logL = logL_gaussian(data, model, parnames, parvals)
             %% logL = logL_gaussian(data, model, parnames, parvals)
             %

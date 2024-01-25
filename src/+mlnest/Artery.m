@@ -1,4 +1,4 @@
-classdef (Abstract) Artery < handle & mlsystem.IHandle
+classdef (Abstract) Artery < handle & mlio.AbstractHandleIO & mlsystem.IHandle
     %% line1
     %  line2
     %  
@@ -45,6 +45,7 @@ classdef (Abstract) Artery < handle & mlsystem.IHandle
             parvals = [num2cell(ascol(product.mean_ks)); struct2cell(this.Data)];
             [signal_numer,ideal_numer] = this.signalmodel(ascol(this.times_sampled), parnames, parvals);
 
+            this.fqfn = this.artery.fqfn;
             ic = copy(this.artery);
 
             ic.json_metadata.mean_ks = product.mean_ks;
@@ -105,18 +106,35 @@ classdef (Abstract) Artery < handle & mlsystem.IHandle
             p = [keys, types, mins, maxs, behaviors];
             p = natsortrows(p, [], logical([1,0,0,0,0]));
         end   
-        function conc = slide(conc, t, Dt)
+        function conc = slide_fast(conc, t, Dt)
             %% SLIDE slides discretized function conc(t) to conc(t - Dt);
             %  Dt > 0 will slide conc(t) towards later times t.
             %  Dt < 0 will slide conc(t) towards earlier times t.
             %  It works for inhomogeneous t according to the ability of interp1 to interpolate.
             %  It may not preserve information according to the Nyquist-Shannon theorem.  
             
-            import mlnest.Artery.ensureRow;
+            if Dt < 1e-3
+                return
+            end
+          
+            conc  = interp1(t, conc, t - Dt); % interpolate onto t shifted by Dt; Dt > 0 shifts to right            
+            conc(isnan(conc)) = 0;
+        end
+        function conc = slide_slow(conc, t, Dt)
+            %% SLIDE slides discretized function conc(t) to conc(t - Dt);
+            %  Dt > 0 will slide conc(t) towards later times t.
+            %  Dt < 0 will slide conc(t) towards earlier times t.
+            %  It works for inhomogeneous t according to the ability of interp1 to interpolate.
+            %  It may not preserve information according to the Nyquist-Shannon theorem.  
             
+            import mlnest.Artery.ensureRow;            
+
+            if Dt < eps
+                return
+            end
+
             [conc,trans] = ensureRow(conc);
-            t            = ensureRow(t);
-            
+            t            = ensureRow(t);            
             tspan = t(end) - t(1);
             tinc  = t(2) - t(1);
             t_    = [(t - tspan - tinc) t];   % prepend times
@@ -126,6 +144,33 @@ classdef (Abstract) Artery < handle & mlsystem.IHandle
             
             if (trans)
                 conc = conc';
+            end
+        end
+        function conc = slide(conc, t, Dt)
+            %% SLIDE slides discretized function conc(t) to conc(t - Dt), for integer Dt;
+            %  Dt > 0 will slide conc(t) towards later times t.
+            %  Dt < 0 will slide conc(t) towards earlier times t.
+            %  It may not preserve information according to the Nyquist-Shannon theorem.  
+            
+            import mlnest.Artery.ensureRow;
+            
+            Dt = round(Dt); 
+            if Dt == 0
+                return
+            end
+         
+            %conc(isnan(conc)) = 0;
+            if Dt > 0
+                conc_ = zeros(size(conc));
+                conc_(Dt+1:end) = conc(1:end-Dt);
+                conc = conc_;
+                return
+            end
+            if Dt < 0
+                conc_ = conc(end)*ones(size(conc));
+                conc_(1:end-Dt) = conc(Dt+1:end);
+                conc = conc_;
+                return;
             end
         end
     end

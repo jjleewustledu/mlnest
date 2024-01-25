@@ -50,7 +50,7 @@ classdef (Abstract) Boxcar < handle & mlnest.Artery
 
         function vec = apply_boxcar(vec_, Data)
             %% Args:            
-            %      vec double_, has 1 Hz sampling
+            %      vec_ double, has 1 Hz sampling
             %      Data struct
             %  Returns:
             %      vec double, sampled at opts.Data.timesMid
@@ -59,10 +59,10 @@ classdef (Abstract) Boxcar < handle & mlnest.Artery
                 vec_ double 
                 Data struct = []
             end      
-            if isempty(Data)
-                vec = vec_;
-                return
-            end
+            % if isempty(Data)
+            %     vec = vec_;
+            %     return
+            % end
             timesMid = Data.timesMid;
             taus = Data.taus;
             times0 = timesMid - taus/2;

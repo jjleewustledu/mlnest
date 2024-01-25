@@ -44,20 +44,20 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot(ic)
         end
         function test_Boxcar_ho(this)
-            tic
             ic = mlfourd.ImagingContext2( ...
                 fullfile(this.deriv_ho_pet_pth, ...
                 "sub-108293_ses-20210421152358_trc-ho_proc-MipIdif_idif.nii.gz"));
             boxcar = mlnest.Boxcar.create(artery=ic, model_kind="3bolus");
-
             cd(ic.filepath)
+
+            tic % <--------------
 
             obj = mlnest.MultiNest(context=boxcar);
             obj.filepath = ic.filepath;
             obj = obj.solve( ...
                 signal_model=@boxcar.signalmodel, ...
                 verbose=false, ...
-                Nlive=55, ...
+                Nlive=200, ...
                 Nmcmc=0); 
 
             % 3bolus logZ ~ -1295
@@ -71,6 +71,9 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             obj.plot_posteriors(singles=true);
             obj.save();
 
+            toc % <-------------- Nlive = 55 -> 245 s for slide_slow; 115-158 s for slide_fast; 926 s for slide_int
+                %                 Nlive = 200 >> 12 h
+
             [sig,idl] = boxcar.simulate(obj.product);
             figure;
             plot_over_figure(boxcar.artery, 'o', MarkerSize=12); hold on;
@@ -78,9 +81,8 @@ classdef Test_MultiNest < matlab.unittest.TestCase
             plot_over_figure(idl, '-', LineWidth=1.5); hold off;
             ylabel("activity (Bq/mL)")
             xlabel("time (s)")
-            saveFigures(stackstr+"_Nlive=55_Nmcmc=0", closeFigure=false);
-            close('all');
-            toc
+            saveFigures(stackstr+"_Nlive=200_Nmcmc=0", closeFigure=false);
+            close('all');            
         end
         function test_Boxcar_oo(this)
             tic            
